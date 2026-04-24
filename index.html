@@ -74,8 +74,30 @@
       text-transform: uppercase;
     }
     .mode-icon { font-size: 16px; line-height: 1; }
-    .mode-copy { font-size: 15px; line-height: 1.45; color: var(--text-primary); }
+    .mode-copy { font-size: 15px; line-height: 1.45; color: var(--text-primary); flex: 1; min-width: 200px; }
     .mode-copy strong { color: var(--accent); }
+
+    /* Timer — only visible in progressing mode */
+    .timer {
+      padding: 10px 18px;
+      background: var(--bg-primary);
+      border: 2px solid var(--accent);
+      border-radius: 999px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      min-width: 96px;
+      text-align: center;
+    }
+    .timer.urgent {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: var(--error);
+      color: var(--error);
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
     /* ===== HEADER ===== */
     header {
@@ -265,42 +287,54 @@
     .formula sub { font-size: 0.7em; vertical-align: baseline; }
     .plus, .arrow { color: var(--text-secondary); font-size: 1.5rem; font-weight: 300; }
 
-    /* ===== STATUS GRID ===== */
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .element-card {
+    /* ===== COUNTING PROMPT (replaces the live tally — forces real counting) ===== */
+    .counting-prompt {
       background: var(--bg-tertiary);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 10px 12px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      transition: all 180ms ease;
-    }
-    .element-card.match {
-      border-color: rgba(34,197,94,0.4);
-      background: rgba(34,197,94,0.05);
-    }
-    .element-card.mismatch {
-      border-color: rgba(239,68,68,0.4);
-      background: rgba(239,68,68,0.05);
-    }
-    .element-symbol { font-weight: 700; font-size: 15px; }
-    .element-count {
-      display: flex;
-      gap: 6px;
-      font-variant-numeric: tabular-nums;
+      gap: 12px;
+      align-items: flex-start;
+      color: var(--text-secondary);
       font-size: 14px;
+      line-height: 1.5;
     }
-    .count-left { color: var(--reactant); }
-    .count-right { color: var(--product); }
-    .count-eq { color: var(--text-muted); }
+    .counting-prompt .cp-icon {
+      font-size: 18px;
+      line-height: 1.3;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+    .counting-prompt strong { color: var(--text-primary); }
+
+    /* Locked state — before Start is clicked */
+    .equation-display.locked { opacity: 0.45; pointer-events: none; filter: grayscale(0.4); }
+    .equation-display.locked .btn-step { cursor: not-allowed; }
+
+    .start-overlay {
+      text-align: center;
+      padding: 20px 0 10px;
+    }
+    .start-overlay .start-hint {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .btn-start {
+      background: var(--accent);
+      color: #0a0a0a;
+      font-weight: 700;
+      padding: 14px 40px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: background 120ms ease;
+    }
+    .btn-start:hover { background: var(--accent-hover); }
 
     /* ===== ACTIONS ===== */
     .action-row {
@@ -355,6 +389,7 @@
       <span id="mode-text">PROGRESSING</span>
     </span>
     <span class="mode-copy" id="mode-copy">You're climbing. Solve 3 in a row at this tier to advance.</span>
+    <span class="timer" id="timer" style="display:none">2:00</span>
   </div>
 </div>
 
@@ -386,9 +421,19 @@
 
     <div class="equation-display" id="equation-target"></div>
 
-    <div class="status-grid" id="status-grid"></div>
+    <div class="counting-prompt">
+      <span class="cp-icon">✎</span>
+      <div id="counting-copy">
+        <strong>Count the atoms yourself.</strong> No live feedback — you have to track the totals on paper or in your head. When you think it's balanced, hit <strong>Check</strong>. Right answer: you progress. Wrong answer: straight into training. The counting IS the learning.
+      </div>
+    </div>
 
-    <div class="action-row">
+    <div class="start-overlay" id="start-overlay">
+      <button class="btn-start" id="start-btn">Start problem</button>
+      <div class="start-hint" id="start-hint">The 2-minute timer starts the moment you click.</div>
+    </div>
+
+    <div class="action-row" id="action-row" style="display:none">
       <button class="btn btn-primary" id="check-btn">Check balance</button>
       <button class="btn btn-secondary" id="reset-coeffs-btn">Reset coefficients</button>
     </div>
@@ -403,47 +448,90 @@
 
 const TIERS = [
   {
-    id: 'tier1',
-    label: 'Tier 1',
-    name: 'Warm-up',
+    id: 'tier1', label: 'Tier 1', name: 'Warm-up', toAdvance: 3,
     problems: [
-      { eq: 'H2 + O2 -> H2O',     name: 'Water Synthesis',       answer: [2, 1, 2] },
-      { eq: 'N2 + H2 -> NH3',     name: 'Haber Process',         answer: [1, 3, 2] },
-      { eq: 'C + O2 -> CO2',      name: 'Combustion of Carbon',  answer: [1, 1, 1] },
-      { eq: 'Na + Cl2 -> NaCl',   name: 'Table Salt Formation',  answer: [2, 1, 2] },
-      { eq: 'H2 + Cl2 -> HCl',    name: 'Hydrogen Chloride',     answer: [1, 1, 2] },
-      { eq: 'Mg + O2 -> MgO',     name: 'Magnesium Burns',       answer: [2, 1, 2] },
-    ],
-    toAdvance: 3
+      { eq: 'H2 + O2 -> H2O',       name: 'Water Synthesis' },
+      { eq: 'N2 + H2 -> NH3',       name: 'Haber Process' },
+      { eq: 'C + O2 -> CO2',        name: 'Combustion of Carbon' },
+      { eq: 'Na + Cl2 -> NaCl',     name: 'Table Salt Formation' },
+      { eq: 'H2 + Cl2 -> HCl',      name: 'Hydrogen Chloride' },
+      { eq: 'Mg + O2 -> MgO',       name: 'Magnesium Burns' },
+      { eq: 'K + Cl2 -> KCl',       name: 'Potassium Chloride' },
+      { eq: 'Li + O2 -> Li2O',      name: 'Lithium Oxide' },
+      { eq: 'Ca + O2 -> CaO',       name: 'Calcium Oxide' },
+      { eq: 'N2 + O2 -> NO',        name: 'Nitric Oxide' },
+      { eq: 'Ag + S -> Ag2S',       name: 'Silver Sulfide' },
+      { eq: 'P + O2 -> P2O5',       name: 'Phosphorus Pentoxide' },
+      { eq: 'Ba + F2 -> BaF2',      name: 'Barium Fluoride' },
+      { eq: 'Cu + S -> Cu2S',       name: 'Copper(I) Sulfide' },
+      { eq: 'K + Br2 -> KBr',       name: 'Potassium Bromide' },
+      { eq: 'Zn + O2 -> ZnO',       name: 'Zinc Oxide' },
+      { eq: 'Al + Cl2 -> AlCl3',    name: 'Aluminum Chloride' },
+      { eq: 'H2 + F2 -> HF',        name: 'Hydrogen Fluoride' },
+      { eq: 'Sn + O2 -> SnO2',      name: 'Tin Dioxide' },
+      { eq: 'H2O -> H2 + O2',       name: 'Electrolysis of Water' },
+    ]
   },
   {
-    id: 'tier2',
-    label: 'Tier 2',
-    name: 'Harder',
+    id: 'tier2', label: 'Tier 2', name: 'Harder', toAdvance: 3,
     problems: [
-      { eq: 'KClO3 -> KCl + O2',              name: 'Decomposition',      answer: [2, 2, 3] },
-      { eq: 'Al + O2 -> Al2O3',               name: 'Aluminum Oxide',     answer: [4, 3, 2] },
-      { eq: 'Fe + O2 -> Fe2O3',               name: 'Iron(III) Oxide',    answer: [4, 3, 2] },
-      { eq: 'C3H8 + O2 -> CO2 + H2O',         name: 'Propane Combustion', answer: [1, 5, 3, 4] },
-      { eq: 'CH4 + O2 -> CO2 + H2O',          name: 'Methane Combustion', answer: [1, 2, 1, 2] },
-      { eq: 'Zn + HCl -> ZnCl2 + H2',         name: 'Zinc + Acid',        answer: [1, 2, 1, 1] },
-    ],
-    toAdvance: 3
+      { eq: 'KClO3 -> KCl + O2',                          name: 'Decomposition' },
+      { eq: 'Al + O2 -> Al2O3',                           name: 'Aluminum Oxide' },
+      { eq: 'Fe + O2 -> Fe2O3',                           name: 'Iron(III) Oxide' },
+      { eq: 'C3H8 + O2 -> CO2 + H2O',                     name: 'Propane Combustion' },
+      { eq: 'CH4 + O2 -> CO2 + H2O',                      name: 'Methane Combustion' },
+      { eq: 'Zn + HCl -> ZnCl2 + H2',                     name: 'Zinc + Acid' },
+      { eq: 'C2H6 + O2 -> CO2 + H2O',                     name: 'Ethane Combustion' },
+      { eq: 'Na + H2O -> NaOH + H2',                      name: 'Sodium in Water' },
+      { eq: 'Fe + HCl -> FeCl3 + H2',                     name: 'Iron + Hydrochloric' },
+      { eq: 'NH3 + O2 -> NO + H2O',                       name: 'Ammonia Oxidation' },
+      { eq: 'CaCO3 -> CaO + CO2',                         name: 'Limestone Decomp' },
+      { eq: 'C5H12 + O2 -> CO2 + H2O',                    name: 'Pentane Combustion' },
+      { eq: 'SiO2 + HF -> SiF4 + H2O',                    name: 'Silica + HF' },
+      { eq: 'Cl2 + NaBr -> NaCl + Br2',                   name: 'Halogen Displacement' },
+      { eq: 'KOH + H2SO4 -> K2SO4 + H2O',                 name: 'Neutralization' },
+      { eq: 'NH4NO3 -> N2O + H2O',                        name: 'Ammonium Nitrate' },
+      { eq: 'Ag2O -> Ag + O2',                            name: 'Silver Oxide Decomp' },
+      { eq: 'AgNO3 + CaCl2 -> AgCl + Ca(NO3)2',           name: 'Silver + Calcium Chloride' },
+      { eq: 'Mg + HCl -> MgCl2 + H2',                     name: 'Magnesium + Acid' },
+      { eq: 'Ba(OH)2 + H3PO4 -> Ba3(PO4)2 + H2O',         name: 'Barium Phosphate' },
+    ]
   },
   {
-    id: 'tier3',
-    label: 'Tier 3',
-    name: 'Boss',
+    id: 'tier3', label: 'Tier 3', name: 'Boss', toAdvance: 2,
     problems: [
-      { eq: 'Fe2O3 + CO -> Fe + CO2',                 name: 'Blast Furnace',       answer: [1, 3, 2, 3] },
-      { eq: 'KMnO4 + HCl -> KCl + MnCl2 + H2O + Cl2', name: 'Permanganate Redox',  answer: [2, 16, 2, 2, 8, 5] },
-      { eq: 'C6H12O6 + O2 -> CO2 + H2O',              name: 'Cellular Respiration',answer: [1, 6, 6, 6] },
-    ],
-    toAdvance: 2
+      { eq: 'Fe2O3 + CO -> Fe + CO2',                     name: 'Blast Furnace' },
+      { eq: 'KMnO4 + HCl -> KCl + MnCl2 + H2O + Cl2',     name: 'Permanganate Redox' },
+      { eq: 'C6H12O6 + O2 -> CO2 + H2O',                  name: 'Cellular Respiration' },
+      { eq: 'C8H18 + O2 -> CO2 + H2O',                    name: 'Octane Combustion' },
+      { eq: 'Cu + HNO3 -> Cu(NO3)2 + NO + H2O',           name: 'Copper + Nitric' },
+      { eq: 'Al + H2SO4 -> Al2(SO4)3 + H2',               name: 'Aluminum + Sulfuric' },
+      { eq: 'FeS2 + O2 -> Fe2O3 + SO2',                   name: 'Pyrite Roasting' },
+      { eq: 'C4H10 + O2 -> CO2 + H2O',                    name: 'Butane Combustion' },
+      { eq: 'Pb(NO3)2 + KI -> PbI2 + KNO3',               name: 'Lead Iodide Precipitate' },
+      { eq: 'BaCl2 + Al2(SO4)3 -> BaSO4 + AlCl3',         name: 'Sulfate Double-Replace' },
+      { eq: 'P4 + O2 -> P4O10',                           name: 'White Phosphorus Burns' },
+      { eq: 'N2H4 + N2O4 -> N2 + H2O',                    name: 'Rocket Propellant' },
+      { eq: 'H2O2 -> H2O + O2',                           name: 'Peroxide Decomposition' },
+      { eq: 'S + HNO3 -> H2SO4 + NO2 + H2O',              name: 'Sulfur + Nitric Acid' },
+      { eq: '(NH4)2Cr2O7 -> N2 + Cr2O3 + H2O',            name: 'Volcano Reaction' },
+    ]
   }
 ];
 
-const TRAINING_TO_EXIT = 2; // solve this many in a row to escape training
+/* Fisher-Yates shuffle */
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const TRAINING_TO_EXIT = 2;      // solve this many in a row to escape training
+const PROBLEM_TIME_LIMIT = 120;  // seconds per problem in progressing mode
+const URGENT_TIME = 20;          // seconds below which the timer goes red
 
 /* ============================================================
    State
@@ -454,9 +542,20 @@ const state = {
   progressingWins: 0,     // wins at that tier this pass
   trainingTier: 0,        // the tier they're training on (lower than progressingTier)
   trainingStreak: 0,      // consecutive wins in training
-  problemIdx: 0,          // index within current active tier
+  problemIdx: 0,          // raw index into TIERS[activeTier].problems
   coeffs: [],
+  started: false,         // has the student clicked Start on the current problem?
+  timerId: null,
+  timeLeft: PROBLEM_TIME_LIMIT,
+  queues: [[], [], []],   // shuffled problem-index queues per tier (pop-from-front)
 };
+
+/* Refill a tier's shuffled queue so students get fresh problems on every cycle */
+function refillQueue(tierIdx) {
+  const len = TIERS[tierIdx].problems.length;
+  state.queues[tierIdx] = shuffle(Array.from({length: len}, (_, i) => i));
+}
+function refillAllQueues() { TIERS.forEach((_, i) => refillQueue(i)); }
 
 function activeTierIdx() {
   return state.mode === 'training' ? state.trainingTier : state.progressingTier;
@@ -609,18 +708,122 @@ function renderProblem() {
 
   target.querySelectorAll('.btn-step').forEach(b => {
     b.addEventListener('click', () => {
+      if (!state.started) return;
       const idx = parseInt(b.dataset.idx);
       const delta = parseInt(b.dataset.delta);
       state.coeffs[idx] = Math.max(1, Math.min(30, state.coeffs[idx] + delta));
       $(`c-${idx}`).textContent = state.coeffs[idx];
-      renderStatus();
     });
   });
 
-  renderStatus();
+  // Reset the started state on each new problem — student must click Start
+  state.started = false;
+  stopTimer();
+  target.classList.add('locked');
+  $('start-overlay').style.display = 'block';
+  $('action-row').style.display = 'none';
+  $('timer').style.display = 'none';
+
+  // Counting guide only visible in Tier 1. Once students are past the warm-up
+  // the prompt is assumed — showing it again is noise.
+  const guide = document.querySelector('.counting-prompt');
+  if (guide) guide.style.display = activeTierIdx() === 0 ? 'flex' : 'none';
+
+  // In training mode the Start button doesn't wind a clock — it just commits
+  // the student to the drill. Consistent gate across modes, different label.
+  if (state.mode === 'training') {
+    $('start-btn').textContent = 'Start drill';
+    $('start-hint').textContent = 'No timer in training. Take your time, count carefully, submit when ready.';
+  } else {
+    $('start-btn').textContent = 'Start problem';
+    $('start-hint').textContent = `The ${Math.floor(PROBLEM_TIME_LIMIT/60)}-minute timer starts the moment you click.`;
+  }
+
   renderMode();
   renderTierPills();
   renderDots();
+}
+
+/* ============================================================
+   Start / timer
+   ============================================================ */
+function onStart() {
+  if (state.started) return;
+  state.started = true;
+  $('equation-target').classList.remove('locked');
+  $('start-overlay').style.display = 'none';
+  $('action-row').style.display = 'flex';
+  if (state.mode === 'progressing') startTimer();
+}
+
+function startTimer() {
+  stopTimer();
+  state.timeLeft = PROBLEM_TIME_LIMIT;
+  renderTimer();
+  $('timer').style.display = 'inline-block';
+  state.timerId = setInterval(() => {
+    state.timeLeft--;
+    renderTimer();
+    if (state.timeLeft <= 0) {
+      stopTimer();
+      onTimeout();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (state.timerId) { clearInterval(state.timerId); state.timerId = null; }
+  const t = $('timer');
+  if (t) { t.style.display = 'none'; t.classList.remove('urgent'); }
+}
+
+function renderTimer() {
+  const m = Math.floor(state.timeLeft / 60);
+  const s = state.timeLeft % 60;
+  const el = $('timer');
+  el.textContent = `${m}:${String(s).padStart(2, '0')}`;
+  if (state.timeLeft <= URGENT_TIME) el.classList.add('urgent');
+  else el.classList.remove('urgent');
+}
+
+function onTimeout() {
+  // Same consequence as a wrong submit: into training.
+  const stuckTier = TIERS[state.progressingTier];
+  state.mode = 'training';
+  state.trainingTier = Math.max(0, state.progressingTier - 1);
+  state.trainingStreak = 0;
+  state.progressingWins = 0;
+  state.problemIdx = 0;
+  const trainTier = TIERS[state.trainingTier];
+  notice('training', `<strong>Time's up.</strong> Into training at <strong>${trainTier.label}: ${trainTier.name}</strong>. No timer in training — solve ${TRAINING_TO_EXIT} in a row to return to ${stuckTier.label}.`);
+  renderProblem();
+}
+
+/* ============================================================
+   Success sound — C major arpeggio via Web Audio
+   ============================================================ */
+let audioCtx = null;
+function playSuccessSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    // C major triad arpeggio up: C5 E5 G5 C6 — quick, triumphant, satisfying
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, i) => {
+      const delay = i * 0.065;
+      const osc = audioCtx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0, now + delay);
+      gain.gain.linearRampToValueAtTime(0.18, now + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.75);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.8);
+    });
+  } catch (e) { /* silently ignore */ }
 }
 
 function tallyTotals() {
@@ -638,29 +841,6 @@ function tallyTotals() {
     for (const el in p) right[el] = (right[el] || 0) + p[el] * state.coeffs[idx];
   });
   return { left, right };
-}
-
-function renderStatus() {
-  const { left, right } = tallyTotals();
-  const grid = $('status-grid');
-  grid.innerHTML = '';
-  const elements = [...new Set([...Object.keys(left), ...Object.keys(right)])].sort();
-  elements.forEach(el => {
-    const l = left[el] || 0;
-    const r = right[el] || 0;
-    const match = l === r;
-    const card = document.createElement('div');
-    card.className = 'element-card ' + (match ? 'match' : 'mismatch');
-    card.innerHTML = `
-      <span class="element-symbol">${el}</span>
-      <span class="element-count">
-        <span class="count-left">${l}</span>
-        <span class="count-eq">${match ? '=' : '≠'}</span>
-        <span class="count-right">${r}</span>
-      </span>
-    `;
-    grid.appendChild(card);
-  });
 }
 
 function isBalanced() {
@@ -683,22 +863,29 @@ function notice(kind, html) {
 }
 
 /* ============================================================
-   Problem selection — avoid immediate repeat when possible
+   Problem selection — pop from a shuffled queue for that tier.
+   When the queue empties, reshuffle — so students see every problem
+   once before any repeat, and every pass through the tier is a new
+   order. Same mechanism for both progressing and training.
    ============================================================ */
 function pickNextProblem() {
-  const tier = TIERS[activeTierIdx()];
-  state.problemIdx = (state.problemIdx + 1) % tier.problems.length;
+  const i = activeTierIdx();
+  if (!state.queues[i] || state.queues[i].length === 0) refillQueue(i);
+  state.problemIdx = state.queues[i].shift();
 }
 
 /* ============================================================
    Core flow
    ============================================================ */
 function onCheck() {
+  if (!state.started) return;
+  stopTimer();
   if (isBalanced()) handleWin();
   else handleMiss();
 }
 
 function handleWin() {
+  playSuccessSound();
   if (state.mode === 'progressing') {
     state.progressingWins++;
     const tier = TIERS[state.progressingTier];
@@ -709,11 +896,13 @@ function handleWin() {
         notice('success', `<strong>${tier.label} cleared.</strong> You solved ${tier.toAdvance} in a row at ${tier.name.toLowerCase()} level. Moving up to <strong>${nextTier.label}: ${nextTier.name}</strong>.`);
         state.progressingTier++;
         state.progressingWins = 0;
-        state.problemIdx = 0;
+        refillQueue(state.progressingTier); // fresh shuffle for the new tier
+        pickNextProblem();
       } else {
         // Final tier beaten
-        notice('mastered', `<strong>You've mastered balancing reactions.</strong> All three tiers cleared in a row. Keep solving boss-level problems or hit <em>Start over</em> to run the full ladder again.`);
+        notice('mastered', `<strong>You've mastered balancing reactions.</strong> All three tiers cleared in a row. Keep solving boss-level problems or hit <em>Start over</em> to run the full ladder again with a fresh set.`);
         state.progressingWins = 0;
+        refillQueue(state.progressingTier);
         pickNextProblem();
       }
     } else {
@@ -728,11 +917,12 @@ function handleWin() {
   state.trainingStreak++;
   if (state.trainingStreak >= TRAINING_TO_EXIT) {
     const returnTier = TIERS[state.progressingTier];
-    notice('return', `<strong>You earned it.</strong> Back to progressing at <strong>${returnTier.label}: ${returnTier.name}</strong>. You'll need to solve ${returnTier.toAdvance} in a row from scratch. Go.`);
+    notice('return', `<strong>You earned it.</strong> Back to progressing at <strong>${returnTier.label}: ${returnTier.name}</strong>. Fresh set of problems and a clean streak — solve ${returnTier.toAdvance} in a row to advance. Go.`);
     state.mode = 'progressing';
     state.trainingStreak = 0;
     state.progressingWins = 0;
-    state.problemIdx = 0;
+    refillQueue(state.progressingTier); // fresh shuffle on return
+    pickNextProblem();
   } else {
     const remaining = TRAINING_TO_EXIT - state.trainingStreak;
     notice('success', `<strong>Balanced.</strong> ${remaining} more in a row and you're out of training.`);
@@ -743,17 +933,18 @@ function handleWin() {
 
 function handleMiss() {
   if (state.mode === 'progressing') {
-    // Any miss in progressing → into training
+    // Any miss in progressing → into training with a fresh easier set
     const stuckTier = TIERS[state.progressingTier];
     state.mode = 'training';
     state.trainingTier = Math.max(0, state.progressingTier - 1);
     state.trainingStreak = 0;
     state.progressingWins = 0; // the streak died
-    state.problemIdx = 0;
+    refillQueue(state.trainingTier); // fresh shuffle so training feels like new problems
+    pickNextProblem();
     const trainTier = TIERS[state.trainingTier];
     if (state.trainingTier === state.progressingTier) {
       // Already at tier 1 — they train at tier 1 still
-      notice('training', `<strong>Into training.</strong> This is foundational. Solve <strong>${TRAINING_TO_EXIT} in a row</strong> at ${trainTier.label} to sharpen up, then the streak toward advancing restarts. Look at the red cards — those atoms don't match.`);
+      notice('training', `<strong>Into training.</strong> This is foundational. Solve <strong>${TRAINING_TO_EXIT} in a row</strong> at ${trainTier.label} to sharpen up, then the streak toward advancing restarts.`);
     } else {
       notice('training', `<strong>Into training.</strong> We're dropping to <strong>${trainTier.label}: ${trainTier.name}</strong>. Solve <strong>${TRAINING_TO_EXIT} in a row</strong> to return to ${stuckTier.label}. Your tier streak resets when you come back.`);
     }
@@ -769,9 +960,9 @@ function handleMiss() {
 }
 
 function onResetCoeffs() {
+  if (!state.started) return;
   state.coeffs = state.coeffs.map(() => 1);
   state.coeffs.forEach((v, i) => { const el = $(`c-${i}`); if (el) el.textContent = v; });
-  renderStatus();
 }
 
 function onStartOver() {
@@ -780,8 +971,11 @@ function onStartOver() {
   state.progressingWins = 0;
   state.trainingTier = 0;
   state.trainingStreak = 0;
-  state.problemIdx = 0;
-  notice('info', `<strong>Restarted.</strong> Back to the warm-up. Solve ${TIERS[0].toAdvance} in a row to advance. One miss drops you into training.`);
+  state.started = false;
+  stopTimer();
+  refillAllQueues(); // full reshuffle so a fresh run feels fresh
+  pickNextProblem();
+  notice('info', `<strong>Restarted with a new set.</strong> Back to the warm-up. Solve ${TIERS[0].toAdvance} in a row to advance. One miss drops you into training.`);
   renderProblem();
 }
 
@@ -789,8 +983,11 @@ function onStartOver() {
 $('check-btn').addEventListener('click', onCheck);
 $('reset-coeffs-btn').addEventListener('click', onResetCoeffs);
 $('reset-btn').addEventListener('click', onStartOver);
+$('start-btn').addEventListener('click', onStart);
 
 /* Boot */
+refillAllQueues();
+pickNextProblem();
 notice('info', `<strong>How mastery works.</strong> Solve ${TIERS[0].toAdvance} in a row at a tier to advance. One wrong answer drops you into <strong>training</strong> at the tier below. Solve ${TRAINING_TO_EXIT} in a row there to return. The color above tells you which mode you're in.`);
 renderProblem();
 </script>
