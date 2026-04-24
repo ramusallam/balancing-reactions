@@ -36,6 +36,77 @@
       --accent-soft: rgba(196, 181, 253, 0.14);
       --accent-ring: rgba(196, 181, 253, 0.4);
     }
+    body[data-mode="custom"] {
+      --accent: #2dd4bf;        /* teal-400 — practice mode */
+      --accent-hover: #5eead4;
+      --accent-soft: rgba(45, 212, 191, 0.14);
+      --accent-ring: rgba(45, 212, 191, 0.4);
+    }
+
+    /* Practice-mode input form: big, inviting, minimal. */
+    .custom-form {
+      background: var(--bg-1);
+      border: 2px solid var(--accent);
+      border-radius: 14px;
+      padding: 32px 28px;
+      text-align: center;
+    }
+    .custom-form h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+    .custom-form p {
+      color: var(--ink-mid);
+      font-size: 14px;
+      margin-bottom: 22px;
+    }
+    .custom-input {
+      width: 100%;
+      font-family: ui-serif, Georgia, serif;
+      font-size: clamp(20px, 3.2vw, 28px);
+      font-weight: 600;
+      padding: 16px 20px;
+      background: var(--bg-2);
+      border: 2px solid var(--border-strong);
+      border-radius: 10px;
+      color: var(--ink-hi);
+      text-align: center;
+      outline: none;
+      transition: border-color 120ms ease, background 120ms ease;
+    }
+    .custom-input:focus {
+      border-color: var(--accent);
+      background: var(--bg-1);
+    }
+    .custom-input::placeholder { color: var(--ink-low); font-style: italic; font-weight: 400; }
+    .custom-examples {
+      margin-top: 14px;
+      color: var(--ink-low);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .custom-examples code {
+      font-family: ui-monospace, monospace;
+      background: var(--bg-2);
+      padding: 2px 8px;
+      border-radius: 5px;
+      color: var(--ink-mid);
+    }
+    .custom-error {
+      margin-top: 14px;
+      color: var(--error);
+      font-size: 14px;
+      min-height: 20px;
+    }
+    .custom-actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { min-height: 100vh; }
@@ -419,6 +490,7 @@
     <span class="mode-badge" id="mode-badge">Progressing</span>
     <span class="mode-badge" id="mode-icon" style="background:transparent;color:var(--accent);border:1.5px solid var(--accent);padding:6px 12px">Tier 1</span>
     <div class="actions-right">
+      <button class="btn" id="practice-btn">Practice</button>
       <button class="btn" id="sandbox-btn" style="display:none">Sandbox</button>
       <button class="btn" id="reset-btn">Start over</button>
     </div>
@@ -429,7 +501,21 @@
 
   <div class="toast" id="toast"></div>
 
-  <div class="card">
+  <div class="custom-form" id="custom-form" style="display:none">
+    <h2>Type a reaction to practice</h2>
+    <p>Whatever you're doing in class — paste it in and balance it.</p>
+    <input class="custom-input" id="custom-input" placeholder="Na + Cl2 → NaCl" autocomplete="off" spellcheck="false" />
+    <div class="custom-examples">
+      Use <code>-&gt;</code> or <code>→</code> for the arrow. Examples: <code>H2 + O2 → H2O</code>, <code>CH4 + O2 → CO2 + H2O</code>, <code>Fe + Cl2 → FeCl3</code>
+    </div>
+    <div class="custom-error" id="custom-error"></div>
+    <div class="custom-actions">
+      <button class="btn primary" id="custom-build-btn">Build it</button>
+      <button class="btn" id="custom-exit-btn">Exit practice</button>
+    </div>
+  </div>
+
+  <div class="card" id="main-card">
 
     <div class="timer-row" id="timer-row">
       <span class="timer-label">Time</span>
@@ -674,6 +760,7 @@ const state = {
   mastered: (typeof localStorage !== 'undefined' && localStorage.getItem('bal-rxn-mastered') === '1'),
   queues: { prog: [[],[],[]], train: [[],[],[]], sand: [] },
   lastFailedEq: null,     // equation string the student most recently missed
+  customProblem: null,    // { eq, name } when student built a practice reaction
 };
 
 /* Format a balanced equation for the reveal overlay — e.g.
@@ -721,6 +808,7 @@ function shuffle(arr) {
 }
 
 function currentPool() {
+  if (state.mode === 'custom') return state.customProblem ? [state.customProblem] : [];
   if (state.mode === 'sandbox') return SANDBOX.problems;
   if (state.mode === 'training') return TIERS[state.trainTier].training;
   return TIERS[state.progTier].progressing;
@@ -801,19 +889,29 @@ const $ = id => document.getElementById(id);
 
 function renderTopbar() {
   document.body.dataset.mode = state.mode;
-  const modeMap = { progressing: 'Progressing', training: 'Training', sandbox: 'Sandbox' };
+  const modeMap = { progressing: 'Progressing', training: 'Training', sandbox: 'Sandbox', custom: 'Practice' };
   $('mode-badge').textContent = modeMap[state.mode];
+  if (state.mode === 'custom') {
+    $('mode-icon').textContent = state.customProblem ? state.customProblem.eq : 'Free play';
+    $('sandbox-btn').style.display = 'none';
+    $('reset-btn').textContent = 'Exit practice';
+    $('reset-btn').style.display = '';
+    $('practice-btn').style.display = 'none';
+    return;
+  }
   const tier = state.mode === 'sandbox' ? SANDBOX : TIERS[currentTierIdx()];
   $('mode-icon').textContent = tier.label + (tier.name ? ' · ' + tier.name : '');
   $('sandbox-btn').style.display = state.mastered && state.mode !== 'sandbox' ? 'inline-block' : 'none';
   $('sandbox-btn').textContent = 'Sandbox';
   $('reset-btn').textContent = state.mode === 'sandbox' ? 'Exit sandbox' : 'Start over';
+  $('reset-btn').style.display = '';
+  $('practice-btn').style.display = '';
 }
 
 function renderLadder() {
   const row = $('ladder');
   row.innerHTML = '';
-  if (state.mode === 'sandbox') {
+  if (state.mode === 'sandbox' || state.mode === 'custom') {
     row.style.display = 'none';
     return;
   }
@@ -833,7 +931,7 @@ function renderLadder() {
 function renderStreak() {
   const wrap = $('streak');
   wrap.innerHTML = '';
-  if (state.mode === 'sandbox') {
+  if (state.mode === 'sandbox' || state.mode === 'custom') {
     wrap.style.display = 'none';
     return;
   }
@@ -1186,6 +1284,17 @@ function onCheck() {
 
 function onWin() {
   playSuccessSound();
+  if (state.mode === 'custom') {
+    toast('good', `<b>Balanced.</b>`);
+    // Let praise play, then drop them back at the input form for the next reaction
+    setTimeout(() => {
+      state.customProblem = null;
+      state.started = false;
+      $('custom-input').value = '';
+      renderCustomForm();
+    }, 1600);
+    return;
+  }
   if (state.mode === 'sandbox') {
     toast('good', `<b>Balanced.</b>`);
     pickNext();
@@ -1237,7 +1346,15 @@ function onWin() {
 }
 
 function onMiss() {
+  if (state.mode === 'custom') {
+    playMildBuzz();
+    toast('bad', `<b>Not balanced.</b> Keep adjusting.`);
+    $('actions').classList.add('show');
+    $('eq').classList.remove('locked');
+    return;
+  }
   if (state.mode === 'sandbox') {
+    playMildBuzz();
     toast('bad', `<b>Not balanced.</b>`);
     $('actions').classList.add('show');
     $('eq').classList.remove('locked');
@@ -1307,12 +1424,119 @@ function onEnterSandbox() {
   renderProblem();
 }
 
+/* ============================================================
+   Practice (custom reaction) mode
+   ============================================================ */
+function parseCustomInput(raw) {
+  let s = String(raw || '').trim();
+  if (!s) return null;
+  // Normalize arrows: →, ⟶, -->, =>, "yields", "->"  →  "->"
+  s = s.replace(/→|⟶|⇾|=>/g, '->')
+       .replace(/-->/g, '->')
+       .replace(/\byields\b/gi, '->')
+       .replace(/\bgives\b/gi, '->')
+       .replace(/\bproduces\b/gi, '->');
+  const parts = s.split('->').map(p => p.trim()).filter(Boolean);
+  if (parts.length !== 2) return null;
+  const splitSide = side => side
+    .split(/\s*\+\s*/)
+    .map(m => m.trim().replace(/^\d+\s*/, '')) // strip any leading coefficient
+    .filter(Boolean);
+  const reactants = splitSide(parts[0]);
+  const products  = splitSide(parts[1]);
+  if (!reactants.length || !products.length) return null;
+  // Validate: each molecule starts with an uppercase letter and contains
+  // only letters, digits, and parentheses
+  const valid = /^[A-Z][A-Za-z0-9()]*$/;
+  for (const m of [...reactants, ...products]) {
+    if (!valid.test(m)) return null;
+  }
+  return {
+    eq: reactants.join(' + ') + ' -> ' + products.join(' + '),
+    name: 'Your reaction',
+  };
+}
+
+function renderCustomForm() {
+  document.body.dataset.mode = 'custom';
+  $('main-card').style.display = 'none';
+  $('ladder').style.display = 'none';
+  $('streak').style.display = 'none';
+  $('custom-form').style.display = 'block';
+  $('custom-input').focus();
+  $('custom-error').textContent = '';
+  // Top bar tweaks for custom mode
+  $('mode-badge').textContent = 'Practice';
+  $('mode-icon').textContent = 'Free play';
+  $('sandbox-btn').style.display = 'none';
+  $('reset-btn').style.display = 'none';
+}
+
+function onPracticeClick() {
+  state.mode = 'custom';
+  state.customProblem = null;
+  state.started = false;
+  stopTimer();
+  clearToast();
+  renderCustomForm();
+}
+
+function onCustomBuild() {
+  const raw = $('custom-input').value;
+  const problem = parseCustomInput(raw);
+  if (!problem) {
+    $('custom-error').textContent = "Couldn't parse that. Try something like: H2 + O2 → H2O";
+    return;
+  }
+  state.customProblem = problem;
+  state.started = false;
+  // Switch to the main card with the built equation
+  $('custom-form').style.display = 'none';
+  $('main-card').style.display = '';
+  renderProblem();
+}
+
+function onCustomExit() {
+  // Leave practice and return to progressing where they were
+  state.mode = 'progressing';
+  state.customProblem = null;
+  state.started = false;
+  $('custom-form').style.display = 'none';
+  $('main-card').style.display = '';
+  $('reset-btn').style.display = '';
+  stopTimer();
+  clearToast();
+  refillAll();
+  pickNext();
+  renderProblem();
+}
+
+function playMildBuzz() {
+  try {
+    const ac = audio(); const now = ac.currentTime;
+    const osc = ac.createOscillator(); osc.type = 'square'; osc.frequency.value = 180;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.18, now + 0.01);
+    g.gain.setValueAtTime(0.18, now + 0.14);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    osc.connect(g).connect(ac.destination);
+    osc.start(now); osc.stop(now + 0.24);
+  } catch (e) {}
+}
+
 /* Wire */
 $('check-btn').addEventListener('click', onCheck);
 $('reset-coeffs-btn').addEventListener('click', onResetCoeffs);
 $('reset-btn').addEventListener('click', onStartOver);
 $('start-btn').addEventListener('click', onStart);
 $('sandbox-btn').addEventListener('click', onEnterSandbox);
+$('practice-btn').addEventListener('click', onPracticeClick);
+$('custom-build-btn').addEventListener('click', onCustomBuild);
+$('custom-exit-btn').addEventListener('click', onCustomExit);
+$('custom-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); onCustomBuild(); }
+});
 
 /* Boot */
 refillAll();
