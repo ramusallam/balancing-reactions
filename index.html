@@ -866,20 +866,39 @@ function audio() {
   return audioCtx;
 }
 
+/* Instead of a beep: a random '90s-Sacramento-vibe praise line spoken
+   out loud via the browser's SpeechSynthesis API. Falls back silent
+   if the browser doesn't support it. */
+const PRAISES = [
+  "Great job!",
+  "Way to go!",
+  "You are so legit!",
+  "That's tight!",
+  "Nailed it!",
+  "Sweet!",
+  "That's rad!",
+  "Killer!",
+  "You got it!",
+  "Right on!",
+  "That's dope!",
+  "You're the bomb!",
+  "Off the hook!",
+  "That's fresh!",
+  "Word!",
+  "Wicked!",
+  "Fire!",
+];
 function playSuccessSound() {
   try {
-    const ac = audio(); const now = ac.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C major arpeggio
-    notes.forEach((f, i) => {
-      const d = i * 0.065;
-      const osc = ac.createOscillator(); osc.type = 'triangle'; osc.frequency.value = f;
-      const g = ac.createGain();
-      g.gain.setValueAtTime(0, now + d);
-      g.gain.linearRampToValueAtTime(0.18, now + d + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, now + d + 0.75);
-      osc.connect(g).connect(ac.destination);
-      osc.start(now + d); osc.stop(now + d + 0.8);
-    });
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+    // Don't stack if another utterance is still going
+    window.speechSynthesis.cancel();
+    const text = PRAISES[Math.floor(Math.random() * PRAISES.length)];
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1.05;
+    utter.pitch = 1.15;
+    utter.volume = 1.0;
+    window.speechSynthesis.speak(utter);
   } catch (e) {}
 }
 
