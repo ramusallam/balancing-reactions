@@ -323,6 +323,50 @@
     .toast.amber { background: rgba(251, 191, 36, 0.08); border-color: #fbbf24; color: #fde68a; }
     .toast b { color: var(--ink-hi); }
 
+    /* Correct-answer reveal overlay — fires on a wrong submission in
+       progressing mode, shows the balanced equation for a few seconds,
+       then drops the student into training. */
+    .reveal {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(15, 23, 42, 0.88);
+      opacity: 0; pointer-events: none;
+      transition: opacity 220ms ease;
+      z-index: 99;
+      padding: 20px;
+    }
+    .reveal.show { opacity: 1; }
+    .reveal-inner {
+      text-align: center;
+      padding: 28px 36px;
+      background: var(--bg-1);
+      border: 2px solid #fbbf24;
+      border-radius: 14px;
+      max-width: 720px;
+    }
+    .reveal-label {
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: #fbbf24;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+    .reveal-eq {
+      font-family: ui-serif, Georgia, serif;
+      font-size: clamp(24px, 4vw, 38px);
+      font-weight: 600;
+      color: var(--ink-hi);
+      margin-bottom: 14px;
+      line-height: 1.2;
+    }
+    .reveal-eq .co { color: #fbbf24; font-weight: 900; margin-right: 2px; }
+    .reveal-eq sub { font-size: 0.68em; vertical-align: baseline; }
+    .reveal-sub {
+      font-size: 14px;
+      color: var(--ink-mid);
+      font-style: italic;
+    }
+
     /* Big centered praise popup — visual fallback if speech is blocked,
        but also a great amp-up even when speech works. */
     .praise {
@@ -358,6 +402,14 @@
   </style>
 </head>
 <body data-mode="progressing">
+
+<div class="reveal" id="reveal">
+  <div class="reveal-inner">
+    <div class="reveal-label">Correct balance</div>
+    <div class="reveal-eq" id="reveal-eq"></div>
+    <div class="reveal-sub" id="reveal-sub">Heading to training…</div>
+  </div>
+</div>
 
 <div class="praise" id="praise"><span id="praise-text"></span></div>
 
@@ -410,151 +462,198 @@ const TRAINING_TO_EXIT = 2;
 const PROBLEM_TIME_LIMIT = 120;
 const URGENT_TIME = 20;
 
+/* Every problem now carries its `answer` (balanced coefficients) so we
+   can reveal the correct balance when a student misses. Pools expanded
+   to give each tier a real bench — ~27 progressing and ~27 training
+   per tier, plus a sandbox of 14. No problem is trivially balanced at
+   [1,1,...]; every one requires at least one coefficient > 1. */
 const TIERS = [
   {
     id: 'tier1', label: 'Tier 1', name: 'Warm-up', toAdvance: 3,
     progressing: [
-      // Tier 1 — all require at least one coefficient > 1 to balance
-      { eq: 'H2 + O2 -> H2O',    name: 'Water Synthesis' },          // 2,1,2
-      { eq: 'N2 + H2 -> NH3',    name: 'Haber Process' },            // 1,3,2
-      { eq: 'Na + Cl2 -> NaCl',  name: 'Table Salt' },               // 2,1,2
-      { eq: 'H2 + Cl2 -> HCl',   name: 'Hydrogen Chloride' },        // 1,1,2
-      { eq: 'Mg + O2 -> MgO',    name: 'Magnesium Burns' },          // 2,1,2
-      { eq: 'K + Cl2 -> KCl',    name: 'Potassium Chloride' },       // 2,1,2
-      { eq: 'Li + O2 -> Li2O',   name: 'Lithium Oxide' },            // 4,1,2
-      { eq: 'Ca + O2 -> CaO',    name: 'Calcium Oxide' },            // 2,1,2
-      { eq: 'N2 + O2 -> NO',     name: 'Nitric Oxide' },             // 1,1,2
-      { eq: 'Ag + S -> Ag2S',    name: 'Silver Sulfide' },           // 2,1,1
-      { eq: 'P + O2 -> P2O5',    name: 'Phosphorus Pentoxide' },     // 4,5,2
-      { eq: 'Cu + S -> Cu2S',    name: 'Copper(I) Sulfide' },        // 2,1,1
-      { eq: 'K + Br2 -> KBr',    name: 'Potassium Bromide' },        // 2,1,2
-      { eq: 'Zn + O2 -> ZnO',    name: 'Zinc Oxide' },               // 2,1,2
-      { eq: 'Al + Cl2 -> AlCl3', name: 'Aluminum Chloride' },        // 2,3,2
-      { eq: 'H2 + F2 -> HF',     name: 'Hydrogen Fluoride' },        // 1,1,2
-      { eq: 'H2O -> H2 + O2',    name: 'Electrolysis' },             // 2,2,1
-      { eq: 'Na + O2 -> Na2O',   name: 'Sodium Oxide' },             // 4,1,2
-      { eq: 'Mg + N2 -> Mg3N2',  name: 'Magnesium Nitride' },        // 3,1,1
-      { eq: 'Fe + O2 -> FeO',    name: 'Iron(II) Oxide' },           // 2,1,2
+      { eq: 'H2 + O2 -> H2O',      name: 'Water Synthesis',            answer: [2,1,2] },
+      { eq: 'N2 + H2 -> NH3',      name: 'Haber Process',              answer: [1,3,2] },
+      { eq: 'Na + Cl2 -> NaCl',    name: 'Table Salt',                 answer: [2,1,2] },
+      { eq: 'H2 + Cl2 -> HCl',     name: 'Hydrogen Chloride',          answer: [1,1,2] },
+      { eq: 'Mg + O2 -> MgO',      name: 'Magnesium Burns',            answer: [2,1,2] },
+      { eq: 'K + Cl2 -> KCl',      name: 'Potassium Chloride',         answer: [2,1,2] },
+      { eq: 'Li + O2 -> Li2O',     name: 'Lithium Oxide',              answer: [4,1,2] },
+      { eq: 'Ca + O2 -> CaO',      name: 'Calcium Oxide',              answer: [2,1,2] },
+      { eq: 'N2 + O2 -> NO',       name: 'Nitric Oxide',               answer: [1,1,2] },
+      { eq: 'Ag + S -> Ag2S',      name: 'Silver Sulfide',             answer: [2,1,1] },
+      { eq: 'P + O2 -> P2O5',      name: 'Phosphorus Pentoxide',       answer: [4,5,2] },
+      { eq: 'Cu + S -> Cu2S',      name: 'Copper(I) Sulfide',          answer: [2,1,1] },
+      { eq: 'K + Br2 -> KBr',      name: 'Potassium Bromide',          answer: [2,1,2] },
+      { eq: 'Zn + O2 -> ZnO',      name: 'Zinc Oxide',                 answer: [2,1,2] },
+      { eq: 'Al + Cl2 -> AlCl3',   name: 'Aluminum Chloride',          answer: [2,3,2] },
+      { eq: 'H2 + F2 -> HF',       name: 'Hydrogen Fluoride',          answer: [1,1,2] },
+      { eq: 'H2O -> H2 + O2',      name: 'Electrolysis',               answer: [2,2,1] },
+      { eq: 'Na + O2 -> Na2O',     name: 'Sodium Oxide',               answer: [4,1,2] },
+      { eq: 'Mg + N2 -> Mg3N2',    name: 'Magnesium Nitride',          answer: [3,1,1] },
+      { eq: 'Fe + O2 -> FeO',      name: 'Iron(II) Oxide',             answer: [2,1,2] },
+      { eq: 'Li + Cl2 -> LiCl',    name: 'Lithium Chloride',           answer: [2,1,2] },
+      { eq: 'K + I2 -> KI',        name: 'Potassium Iodide',           answer: [2,1,2] },
+      { eq: 'Cs + Cl2 -> CsCl',    name: 'Cesium Chloride',            answer: [2,1,2] },
+      { eq: 'Ca + N2 -> Ca3N2',    name: 'Calcium Nitride',            answer: [3,1,1] },
+      { eq: 'V + O2 -> V2O5',      name: 'Vanadium Pentoxide',         answer: [4,5,2] },
+      { eq: 'W + O2 -> WO3',       name: 'Tungsten Trioxide',          answer: [2,3,2] },
+      { eq: 'Sb + Cl2 -> SbCl3',   name: 'Antimony Trichloride',       answer: [2,3,2] },
     ],
     training: [
-      { eq: 'Sr + O2 -> SrO',    name: 'Strontium Oxide' },          // 2,1,2
-      { eq: 'Cs + Br2 -> CsBr',  name: 'Cesium Bromide' },           // 2,1,2
-      { eq: 'Be + O2 -> BeO',    name: 'Beryllium Oxide' },          // 2,1,2
-      { eq: 'Ni + O2 -> NiO',    name: 'Nickel(II) Oxide' },         // 2,1,2
-      { eq: 'Na + F2 -> NaF',    name: 'Sodium Fluoride' },          // 2,1,2
-      { eq: 'H2 + I2 -> HI',     name: 'Hydrogen Iodide' },          // 1,1,2
-      { eq: 'K + O2 -> K2O',     name: 'Potassium Oxide' },          // 4,1,2
-      { eq: 'Rb + Cl2 -> RbCl',  name: 'Rubidium Chloride' },        // 2,1,2
-      { eq: 'Al + Br2 -> AlBr3', name: 'Aluminum Bromide' },         // 2,3,2
-      { eq: 'Cd + O2 -> CdO',    name: 'Cadmium Oxide' },            // 2,1,2
-      { eq: 'Hg + O2 -> HgO',    name: 'Mercury(II) Oxide' },        // 2,1,2
-      { eq: 'Fe + Cl2 -> FeCl3', name: 'Iron(III) Chloride' },       // 2,3,2
-      { eq: 'Li + H2 -> LiH',    name: 'Lithium Hydride' },          // 2,1,2
-      { eq: 'Cs + O2 -> Cs2O',   name: 'Cesium Oxide' },             // 4,1,2
-      { eq: 'Rb + O2 -> Rb2O',   name: 'Rubidium Oxide' },           // 4,1,2
-      { eq: 'Ag + O2 -> Ag2O',   name: 'Silver(I) Oxide' },          // 4,1,2
-      { eq: 'Cu + O2 -> CuO',    name: 'Copper(II) Oxide' },         // 2,1,2
-      { eq: 'Al + N2 -> AlN',    name: 'Aluminum Nitride' },         // 2,1,2
-      { eq: 'Ba + O2 -> BaO',    name: 'Barium Oxide' },             // 2,1,2
-      { eq: 'Ga + Cl2 -> GaCl3', name: 'Gallium Trichloride' },      // 2,3,2
+      { eq: 'Sr + O2 -> SrO',      name: 'Strontium Oxide',            answer: [2,1,2] },
+      { eq: 'Cs + Br2 -> CsBr',    name: 'Cesium Bromide',             answer: [2,1,2] },
+      { eq: 'Be + O2 -> BeO',      name: 'Beryllium Oxide',            answer: [2,1,2] },
+      { eq: 'Ni + O2 -> NiO',      name: 'Nickel(II) Oxide',           answer: [2,1,2] },
+      { eq: 'Na + F2 -> NaF',      name: 'Sodium Fluoride',            answer: [2,1,2] },
+      { eq: 'H2 + I2 -> HI',       name: 'Hydrogen Iodide',            answer: [1,1,2] },
+      { eq: 'K + O2 -> K2O',       name: 'Potassium Oxide',            answer: [4,1,2] },
+      { eq: 'Rb + Cl2 -> RbCl',    name: 'Rubidium Chloride',          answer: [2,1,2] },
+      { eq: 'Al + Br2 -> AlBr3',   name: 'Aluminum Bromide',           answer: [2,3,2] },
+      { eq: 'Cd + O2 -> CdO',      name: 'Cadmium Oxide',              answer: [2,1,2] },
+      { eq: 'Hg + O2 -> HgO',      name: 'Mercury(II) Oxide',          answer: [2,1,2] },
+      { eq: 'Fe + Cl2 -> FeCl3',   name: 'Iron(III) Chloride',         answer: [2,3,2] },
+      { eq: 'Li + H2 -> LiH',      name: 'Lithium Hydride',            answer: [2,1,2] },
+      { eq: 'Cs + O2 -> Cs2O',     name: 'Cesium Oxide',               answer: [4,1,2] },
+      { eq: 'Rb + O2 -> Rb2O',     name: 'Rubidium Oxide',             answer: [4,1,2] },
+      { eq: 'Ag + O2 -> Ag2O',     name: 'Silver(I) Oxide',            answer: [4,1,2] },
+      { eq: 'Cu + O2 -> CuO',      name: 'Copper(II) Oxide',           answer: [2,1,2] },
+      { eq: 'Al + N2 -> AlN',      name: 'Aluminum Nitride',           answer: [2,1,2] },
+      { eq: 'Ba + O2 -> BaO',      name: 'Barium Oxide',               answer: [2,1,2] },
+      { eq: 'Ga + Cl2 -> GaCl3',   name: 'Gallium Trichloride',        answer: [2,3,2] },
+      { eq: 'Sr + N2 -> Sr3N2',    name: 'Strontium Nitride',          answer: [3,1,1] },
+      { eq: 'Ba + N2 -> Ba3N2',    name: 'Barium Nitride',             answer: [3,1,1] },
+      { eq: 'Li + S -> Li2S',      name: 'Lithium Sulfide',            answer: [2,1,1] },
+      { eq: 'Na + S -> Na2S',      name: 'Sodium Sulfide',             answer: [2,1,1] },
+      { eq: 'Fe + O2 -> Fe3O4',    name: 'Magnetite',                  answer: [3,2,1] },
+      { eq: 'Cr + O2 -> Cr2O3',    name: 'Chromium(III) Oxide',        answer: [4,3,2] },
+      { eq: 'Li + Br2 -> LiBr',    name: 'Lithium Bromide',            answer: [2,1,2] },
     ]
   },
   {
     id: 'tier2', label: 'Tier 2', name: 'Harder', toAdvance: 3,
     progressing: [
-      { eq: 'KClO3 -> KCl + O2',                 name: 'Decomposition' },
-      { eq: 'Al + O2 -> Al2O3',                  name: 'Aluminum Oxide' },
-      { eq: 'Fe + O2 -> Fe2O3',                  name: 'Iron(III) Oxide' },
-      { eq: 'C3H8 + O2 -> CO2 + H2O',            name: 'Propane Combustion' },
-      { eq: 'CH4 + O2 -> CO2 + H2O',             name: 'Methane Combustion' },
-      { eq: 'Zn + HCl -> ZnCl2 + H2',            name: 'Zinc + Acid' },
-      { eq: 'C2H6 + O2 -> CO2 + H2O',            name: 'Ethane Combustion' },
-      { eq: 'Na + H2O -> NaOH + H2',             name: 'Sodium in Water' },
-      { eq: 'Fe + HCl -> FeCl3 + H2',            name: 'Iron + Hydrochloric' },
-      { eq: 'NH3 + O2 -> NO + H2O',              name: 'Ammonia Oxidation' },
-      { eq: 'C5H12 + O2 -> CO2 + H2O',           name: 'Pentane Combustion' },
-      { eq: 'SiO2 + HF -> SiF4 + H2O',           name: 'Silica + HF' },
-      { eq: 'Cl2 + NaBr -> NaCl + Br2',          name: 'Halogen Displacement' },
-      { eq: 'KOH + H2SO4 -> K2SO4 + H2O',        name: 'Neutralization' },
-      { eq: 'NH4NO3 -> N2O + H2O',               name: 'Ammonium Nitrate' },
-      { eq: 'Ag2O -> Ag + O2',                   name: 'Silver Oxide Decomp' },
-      { eq: 'AgNO3 + CaCl2 -> AgCl + Ca(NO3)2',  name: 'Silver + CaCl2' },
-      { eq: 'Mg + HCl -> MgCl2 + H2',            name: 'Magnesium + Acid' },
-      { eq: 'Ba(OH)2 + H3PO4 -> Ba3(PO4)2 + H2O',name: 'Barium Phosphate' },
+      { eq: 'KClO3 -> KCl + O2',                  name: 'Potassium Chlorate Decomp',  answer: [2,2,3] },
+      { eq: 'Al + O2 -> Al2O3',                   name: 'Aluminum Oxide',             answer: [4,3,2] },
+      { eq: 'Fe + O2 -> Fe2O3',                   name: 'Iron(III) Oxide',            answer: [4,3,2] },
+      { eq: 'C3H8 + O2 -> CO2 + H2O',             name: 'Propane Combustion',         answer: [1,5,3,4] },
+      { eq: 'CH4 + O2 -> CO2 + H2O',              name: 'Methane Combustion',         answer: [1,2,1,2] },
+      { eq: 'Zn + HCl -> ZnCl2 + H2',             name: 'Zinc + Acid',                answer: [1,2,1,1] },
+      { eq: 'C2H6 + O2 -> CO2 + H2O',             name: 'Ethane Combustion',          answer: [2,7,4,6] },
+      { eq: 'Na + H2O -> NaOH + H2',              name: 'Sodium in Water',            answer: [2,2,2,1] },
+      { eq: 'Fe + HCl -> FeCl3 + H2',             name: 'Iron + Hydrochloric',        answer: [2,6,2,3] },
+      { eq: 'NH3 + O2 -> NO + H2O',               name: 'Ammonia Oxidation',          answer: [4,5,4,6] },
+      { eq: 'C5H12 + O2 -> CO2 + H2O',            name: 'Pentane Combustion',         answer: [1,8,5,6] },
+      { eq: 'SiO2 + HF -> SiF4 + H2O',            name: 'Silica + HF',                answer: [1,4,1,2] },
+      { eq: 'Cl2 + NaBr -> NaCl + Br2',           name: 'Halogen Displacement',       answer: [1,2,2,1] },
+      { eq: 'KOH + H2SO4 -> K2SO4 + H2O',         name: 'Neutralization',             answer: [2,1,1,2] },
+      { eq: 'NH4NO3 -> N2O + H2O',                name: 'Ammonium Nitrate Decomp',    answer: [1,1,2] },
+      { eq: 'Ag2O -> Ag + O2',                    name: 'Silver Oxide Decomp',        answer: [2,4,1] },
+      { eq: 'AgNO3 + CaCl2 -> AgCl + Ca(NO3)2',   name: 'Silver + CaCl2',             answer: [2,1,2,1] },
+      { eq: 'Mg + HCl -> MgCl2 + H2',             name: 'Magnesium + Acid',           answer: [1,2,1,1] },
+      { eq: 'Ba(OH)2 + H3PO4 -> Ba3(PO4)2 + H2O', name: 'Barium Phosphate',           answer: [3,2,1,6] },
+      { eq: 'C2H4 + O2 -> CO2 + H2O',             name: 'Ethylene Combustion',        answer: [1,3,2,2] },
+      { eq: 'Cu + AgNO3 -> Cu(NO3)2 + Ag',        name: 'Copper + Silver Nitrate',    answer: [1,2,1,2] },
+      { eq: 'Mg + CO2 -> MgO + C',                name: 'Magnesium + CO2',            answer: [2,1,2,1] },
+      { eq: 'K2O + H2O -> KOH',                   name: 'Potassium Oxide + Water',    answer: [1,1,2] },
+      { eq: 'Zn + AgNO3 -> Zn(NO3)2 + Ag',        name: 'Zinc + Silver Nitrate',      answer: [1,2,1,2] },
+      { eq: 'SO2 + O2 -> SO3',                    name: 'SO2 Oxidation',              answer: [2,1,2] },
+      { eq: 'N2O5 -> N2 + O2',                    name: 'N2O5 Decomp',                answer: [2,2,5] },
     ],
     training: [
-      { eq: 'C2H4 + O2 -> CO2 + H2O',            name: 'Ethylene Combustion' },
-      { eq: 'Ba + H2O -> Ba(OH)2 + H2',          name: 'Barium in Water' },
-      { eq: 'Ca + HCl -> CaCl2 + H2',            name: 'Calcium + Acid' },
-      { eq: 'C6H6 + O2 -> CO2 + H2O',            name: 'Benzene Combustion' },
-      { eq: 'FeO + HCl -> FeCl2 + H2O',          name: 'Iron(II) + Acid' },
-      { eq: 'Fe2O3 + HCl -> FeCl3 + H2O',        name: 'Iron(III) + Acid' },
-      { eq: 'KOH + CO2 -> K2CO3 + H2O',          name: 'KOH + CO2' },
-      { eq: 'HgO -> Hg + O2',                    name: 'Mercury Oxide Decomp' },
-      { eq: 'Al2O3 + HCl -> AlCl3 + H2O',        name: 'Alumina + Acid' },
-      { eq: 'KNO3 -> KNO2 + O2',                 name: 'KNO3 Decomp' },
-      { eq: 'Li + H2O -> LiOH + H2',             name: 'Lithium in Water' },
-      { eq: 'Na2CO3 + HCl -> NaCl + H2O + CO2',  name: 'Soda Ash + Acid' },
-      { eq: 'C2H2 + O2 -> CO2 + H2O',            name: 'Acetylene Combustion' },
-      { eq: 'KOH + H3PO4 -> K3PO4 + H2O',        name: 'Potassium Phosphate' },
-      { eq: 'Mg + N2 -> Mg3N2',                  name: 'Magnesium Nitride' },
-      { eq: 'Al(OH)3 + HCl -> AlCl3 + H2O',      name: 'Al(OH)3 + HCl' },
-      { eq: 'NaHCO3 -> Na2CO3 + H2O + CO2',      name: 'Baking Soda Decomp' },
-      { eq: 'Cu(NO3)2 -> CuO + NO2 + O2',        name: 'Cu(NO3)2 Decomp' },
-      { eq: 'Ca(OH)2 + HCl -> CaCl2 + H2O',      name: 'Slaked Lime + Acid' },
+      { eq: 'Ba + H2O -> Ba(OH)2 + H2',           name: 'Barium in Water',            answer: [1,2,1,1] },
+      { eq: 'Ca + HCl -> CaCl2 + H2',             name: 'Calcium + Acid',             answer: [1,2,1,1] },
+      { eq: 'C6H6 + O2 -> CO2 + H2O',             name: 'Benzene Combustion',         answer: [2,15,12,6] },
+      { eq: 'FeO + HCl -> FeCl2 + H2O',           name: 'Iron(II) + Acid',            answer: [1,2,1,1] },
+      { eq: 'Fe2O3 + HCl -> FeCl3 + H2O',         name: 'Iron(III) + Acid',           answer: [1,6,2,3] },
+      { eq: 'KOH + CO2 -> K2CO3 + H2O',           name: 'KOH + CO2',                  answer: [2,1,1,1] },
+      { eq: 'HgO -> Hg + O2',                     name: 'Mercury Oxide Decomp',       answer: [2,2,1] },
+      { eq: 'Al2O3 + HCl -> AlCl3 + H2O',         name: 'Alumina + Acid',             answer: [1,6,2,3] },
+      { eq: 'KNO3 -> KNO2 + O2',                  name: 'Potassium Nitrate Decomp',   answer: [2,2,1] },
+      { eq: 'Li + H2O -> LiOH + H2',              name: 'Lithium in Water',           answer: [2,2,2,1] },
+      { eq: 'Na2CO3 + HCl -> NaCl + H2O + CO2',   name: 'Soda Ash + Acid',            answer: [1,2,2,1,1] },
+      { eq: 'C2H2 + O2 -> CO2 + H2O',             name: 'Acetylene Combustion',       answer: [2,5,4,2] },
+      { eq: 'KOH + H3PO4 -> K3PO4 + H2O',         name: 'Potassium Phosphate',        answer: [3,1,1,3] },
+      { eq: 'Al(OH)3 + HCl -> AlCl3 + H2O',       name: 'Al(OH)3 + HCl',              answer: [1,3,1,3] },
+      { eq: 'NaHCO3 -> Na2CO3 + H2O + CO2',       name: 'Baking Soda Decomp',         answer: [2,1,1,1] },
+      { eq: 'Cu(NO3)2 -> CuO + NO2 + O2',         name: 'Copper Nitrate Decomp',      answer: [2,2,4,1] },
+      { eq: 'Ca(OH)2 + HCl -> CaCl2 + H2O',       name: 'Slaked Lime + Acid',         answer: [1,2,1,2] },
+      { eq: 'Cu + O2 -> Cu2O',                    name: 'Copper(I) Oxide',            answer: [4,1,2] },
+      { eq: 'Na2O2 + H2O -> NaOH + O2',           name: 'Sodium Peroxide + Water',    answer: [2,2,4,1] },
+      { eq: 'Ca3N2 + H2O -> Ca(OH)2 + NH3',       name: 'Calcium Nitride Hydrolysis', answer: [1,6,3,2] },
+      { eq: 'Al + H2O -> Al(OH)3 + H2',           name: 'Aluminum + Water',           answer: [2,6,2,3] },
+      { eq: 'P + Br2 -> PBr3',                    name: 'Phosphorus Tribromide',      answer: [2,3,2] },
+      { eq: 'Si + Cl2 -> SiCl4',                  name: 'Silicon Tetrachloride',      answer: [1,2,1] },
+      { eq: 'Fe + H2O -> Fe3O4 + H2',             name: 'Iron + Steam',               answer: [3,4,1,4] },
+      { eq: 'C + O2 -> CO',                       name: 'Carbon + Limited O2',        answer: [2,1,2] },
     ]
   },
   {
     id: 'tier3', label: 'Tier 3', name: 'Boss', toAdvance: 2,
     progressing: [
-      { eq: 'Fe2O3 + CO -> Fe + CO2',                     name: 'Blast Furnace' },
-      { eq: 'KMnO4 + HCl -> KCl + MnCl2 + H2O + Cl2',     name: 'Permanganate Redox' },
-      { eq: 'C6H12O6 + O2 -> CO2 + H2O',                  name: 'Cellular Respiration' },
-      { eq: 'C8H18 + O2 -> CO2 + H2O',                    name: 'Octane Combustion' },
-      { eq: 'Cu + HNO3 -> Cu(NO3)2 + NO + H2O',           name: 'Copper + Nitric' },
-      { eq: 'Al + H2SO4 -> Al2(SO4)3 + H2',               name: 'Aluminum + Sulfuric' },
-      { eq: 'FeS2 + O2 -> Fe2O3 + SO2',                   name: 'Pyrite Roasting' },
-      { eq: 'C4H10 + O2 -> CO2 + H2O',                    name: 'Butane Combustion' },
-      { eq: 'Pb(NO3)2 + KI -> PbI2 + KNO3',               name: 'Lead Iodide' },
-      { eq: 'BaCl2 + Al2(SO4)3 -> BaSO4 + AlCl3',         name: 'Sulfate Precipitate' },
-      { eq: 'P4 + O2 -> P4O10',                           name: 'White Phosphorus' },
-      { eq: 'N2H4 + N2O4 -> N2 + H2O',                    name: 'Rocket Propellant' },
-      { eq: 'H2O2 -> H2O + O2',                           name: 'Peroxide Decomp' },
-      { eq: 'S + HNO3 -> H2SO4 + NO2 + H2O',              name: 'Sulfur + Nitric' },
-      { eq: '(NH4)2Cr2O7 -> N2 + Cr2O3 + H2O',            name: 'Volcano Reaction' },
+      { eq: 'Fe2O3 + CO -> Fe + CO2',                     name: 'Blast Furnace',           answer: [1,3,2,3] },
+      { eq: 'KMnO4 + HCl -> KCl + MnCl2 + H2O + Cl2',     name: 'Permanganate Redox',      answer: [2,16,2,2,8,5] },
+      { eq: 'C6H12O6 + O2 -> CO2 + H2O',                  name: 'Cellular Respiration',    answer: [1,6,6,6] },
+      { eq: 'C8H18 + O2 -> CO2 + H2O',                    name: 'Octane Combustion',       answer: [2,25,16,18] },
+      { eq: 'Cu + HNO3 -> Cu(NO3)2 + NO + H2O',           name: 'Copper + Nitric',         answer: [3,8,3,2,4] },
+      { eq: 'Al + H2SO4 -> Al2(SO4)3 + H2',               name: 'Aluminum + Sulfuric',     answer: [2,3,1,3] },
+      { eq: 'FeS2 + O2 -> Fe2O3 + SO2',                   name: 'Pyrite Roasting',         answer: [4,11,2,8] },
+      { eq: 'C4H10 + O2 -> CO2 + H2O',                    name: 'Butane Combustion',       answer: [2,13,8,10] },
+      { eq: 'Pb(NO3)2 + KI -> PbI2 + KNO3',               name: 'Lead Iodide',             answer: [1,2,1,2] },
+      { eq: 'BaCl2 + Al2(SO4)3 -> BaSO4 + AlCl3',         name: 'Sulfate Precipitate',     answer: [3,1,3,2] },
+      { eq: 'P4 + O2 -> P4O10',                           name: 'White Phosphorus',        answer: [1,5,1] },
+      { eq: 'N2H4 + N2O4 -> N2 + H2O',                    name: 'Rocket Propellant',       answer: [2,1,3,4] },
+      { eq: 'H2O2 -> H2O + O2',                           name: 'Peroxide Decomp',         answer: [2,2,1] },
+      { eq: 'S + HNO3 -> H2SO4 + NO2 + H2O',              name: 'Sulfur + Nitric',         answer: [1,6,1,6,2] },
+      { eq: '(NH4)2Cr2O7 -> N2 + Cr2O3 + H2O',            name: 'Volcano Reaction',        answer: [1,1,1,4] },
+      { eq: 'Fe2O3 + H2 -> Fe + H2O',                     name: 'Iron Oxide Reduction',    answer: [1,3,2,3] },
+      { eq: 'Na2CO3 + Ca(OH)2 -> NaOH + CaCO3',           name: 'Soda Lime Reaction',      answer: [1,1,2,1] },
+      { eq: 'KClO3 -> KClO4 + KCl',                       name: 'Chlorate Disproportion',  answer: [4,3,1] },
+      { eq: 'C2H5OH + O2 -> CO2 + H2O',                   name: 'Ethanol Combustion',      answer: [1,3,2,3] },
+      { eq: 'Cr2O3 + Al -> Cr + Al2O3',                   name: 'Chromium Thermite',       answer: [1,2,2,1] },
+      { eq: 'NaOH + Cl2 -> NaCl + NaOCl + H2O',           name: 'Bleach Formation',        answer: [2,1,1,1,1] },
     ],
     training: [
-      { eq: 'CaCO3 + HCl -> CaCl2 + H2O + CO2',           name: 'Limestone + Acid' },
-      { eq: 'Sb2S3 + HCl -> SbCl3 + H2S',                 name: 'Antimony Sulfide' },
-      { eq: 'MnO2 + HCl -> MnCl2 + Cl2 + H2O',            name: 'Chlorine Gas Prep' },
-      { eq: 'Al + HNO3 -> Al(NO3)3 + H2',                 name: 'Aluminum + Nitric' },
-      { eq: 'Mg3N2 + H2O -> Mg(OH)2 + NH3',               name: 'Mg3N2 Hydrolysis' },
-      { eq: 'Ba(ClO3)2 -> BaCl2 + O2',                    name: 'Ba Chlorate Decomp' },
-      { eq: 'NH3 + CuO -> Cu + N2 + H2O',                 name: 'Ammonia Reduction' },
-      { eq: 'C3H6 + O2 -> CO2 + H2O',                     name: 'Propene Combustion' },
-      { eq: 'Na2S + HCl -> NaCl + H2S',                   name: 'Na2S + Acid' },
-      { eq: 'Fe + H2SO4 -> Fe2(SO4)3 + H2',               name: 'Iron + Sulfuric' },
-      { eq: 'P4 + Cl2 -> PCl3',                           name: 'PCl3 Synthesis' },
-      { eq: 'K2CO3 + HCl -> KCl + H2O + CO2',             name: 'Potash + Acid' },
-      { eq: 'NaCl + H2SO4 -> Na2SO4 + HCl',               name: 'Sulfuric + Salt' },
-      { eq: 'Ag2O + HNO3 -> AgNO3 + H2O',                 name: 'Ag2O + Nitric' },
-      { eq: 'Bi(NO3)3 + H2S -> Bi2S3 + HNO3',             name: 'Bismuth Sulfide' },
+      { eq: 'CaCO3 + HCl -> CaCl2 + H2O + CO2',           name: 'Limestone + Acid',        answer: [1,2,1,1,1] },
+      { eq: 'Sb2S3 + HCl -> SbCl3 + H2S',                 name: 'Antimony Sulfide + Acid', answer: [1,6,2,3] },
+      { eq: 'MnO2 + HCl -> MnCl2 + Cl2 + H2O',            name: 'Chlorine Gas Prep',       answer: [1,4,1,1,2] },
+      { eq: 'Al + HNO3 -> Al(NO3)3 + H2',                 name: 'Aluminum + Nitric',       answer: [2,6,2,3] },
+      { eq: 'Mg3N2 + H2O -> Mg(OH)2 + NH3',               name: 'Mg3N2 Hydrolysis',        answer: [1,6,3,2] },
+      { eq: 'Ba(ClO3)2 -> BaCl2 + O2',                    name: 'Ba Chlorate Decomp',      answer: [1,1,3] },
+      { eq: 'NH3 + CuO -> Cu + N2 + H2O',                 name: 'Ammonia Reduction',       answer: [2,3,3,1,3] },
+      { eq: 'C3H6 + O2 -> CO2 + H2O',                     name: 'Propene Combustion',      answer: [2,9,6,6] },
+      { eq: 'Na2S + HCl -> NaCl + H2S',                   name: 'Na2S + Acid',             answer: [1,2,2,1] },
+      { eq: 'Fe + H2SO4 -> Fe2(SO4)3 + H2',               name: 'Iron + Sulfuric',         answer: [2,3,1,3] },
+      { eq: 'P4 + Cl2 -> PCl3',                           name: 'PCl3 Synthesis',          answer: [1,6,4] },
+      { eq: 'K2CO3 + HCl -> KCl + H2O + CO2',             name: 'Potash + Acid',           answer: [1,2,2,1,1] },
+      { eq: 'NaCl + H2SO4 -> Na2SO4 + HCl',               name: 'Sulfuric + Salt',         answer: [2,1,1,2] },
+      { eq: 'Ag2O + HNO3 -> AgNO3 + H2O',                 name: 'Ag2O + Nitric',           answer: [1,2,2,1] },
+      { eq: 'Bi(NO3)3 + H2S -> Bi2S3 + HNO3',             name: 'Bismuth Sulfide',         answer: [2,3,1,6] },
+      { eq: 'C3H8 + Cl2 -> C3H7Cl + HCl',                 name: 'Propane Chlorination',    answer: [1,1,1,1] },
+      { eq: 'PbS + O2 -> PbO + SO2',                      name: 'Galena Roasting',         answer: [2,3,2,2] },
+      { eq: 'AgNO3 + H2S -> Ag2S + HNO3',                 name: 'Silver Sulfide Drop',     answer: [2,1,1,2] },
+      { eq: 'CuO + NH3 -> Cu + N2 + H2O',                 name: 'CuO + Ammonia',           answer: [3,2,3,1,3] },
+      { eq: 'K + H2O -> KOH + H2',                        name: 'Potassium in Water',      answer: [2,2,2,1] },
+      { eq: 'PbO2 + HCl -> PbCl2 + Cl2 + H2O',            name: 'Lead Dioxide + Acid',     answer: [1,4,1,1,2] },
     ]
   }
 ];
 
 const SANDBOX = {
   problems: [
-    { eq: 'C7H16 + O2 -> CO2 + H2O',                                 name: 'Heptane Combustion' },
-    { eq: 'C10H22 + O2 -> CO2 + H2O',                                name: 'Decane Combustion' },
-    { eq: 'HNO3 + H2S -> NO + S + H2O',                              name: 'Nitric + H2S' },
-    { eq: 'Al + Fe2O3 -> Al2O3 + Fe',                                name: 'Thermite' },
-    { eq: 'NaOH + H3PO4 -> Na3PO4 + H2O',                            name: 'Tribasic Neutralization' },
-    { eq: 'C12H22O11 + O2 -> CO2 + H2O',                             name: 'Sucrose Combustion' },
-    { eq: 'Fe + O2 + H2O -> Fe(OH)3',                                name: 'Rust Formation' },
-    { eq: 'KMnO4 + FeSO4 + H2SO4 -> K2SO4 + MnSO4 + Fe2(SO4)3 + H2O',name: 'Permanganate Titration' },
-    { eq: 'Zn + HNO3 -> Zn(NO3)2 + N2O + H2O',                       name: 'Zinc + Dilute Nitric' },
-    { eq: 'C2H5OH + O2 -> CO2 + H2O',                                name: 'Ethanol Combustion' },
+    { eq: 'C7H16 + O2 -> CO2 + H2O',                                 name: 'Heptane Combustion',      answer: [1,11,7,8] },
+    { eq: 'C10H22 + O2 -> CO2 + H2O',                                name: 'Decane Combustion',       answer: [2,31,20,22] },
+    { eq: 'HNO3 + H2S -> NO + S + H2O',                              name: 'Nitric + H2S',            answer: [2,3,2,3,4] },
+    { eq: 'Al + Fe2O3 -> Al2O3 + Fe',                                name: 'Thermite',                answer: [2,1,1,2] },
+    { eq: 'NaOH + H3PO4 -> Na3PO4 + H2O',                            name: 'Tribasic Neutralization', answer: [3,1,1,3] },
+    { eq: 'C12H22O11 + O2 -> CO2 + H2O',                             name: 'Sucrose Combustion',      answer: [1,12,12,11] },
+    { eq: 'Fe + O2 + H2O -> Fe(OH)3',                                name: 'Rust Formation',          answer: [4,3,6,4] },
+    { eq: 'KMnO4 + FeSO4 + H2SO4 -> K2SO4 + MnSO4 + Fe2(SO4)3 + H2O',name: 'Permanganate Titration',  answer: [2,10,8,1,2,5,8] },
+    { eq: 'C2H5OH + O2 -> CO2 + H2O',                                name: 'Ethanol Combustion',      answer: [1,3,2,3] },
+    { eq: 'Pb3O4 -> PbO + O2',                                       name: 'Red Lead Decomp',         answer: [2,6,1] },
+    { eq: 'Cu + H2SO4 -> CuSO4 + SO2 + H2O',                         name: 'Cu + Hot Sulfuric',       answer: [1,2,1,1,2] },
+    { eq: 'NaN3 -> Na + N2',                                         name: 'Airbag Reaction',         answer: [2,2,3] },
+    { eq: 'C6H5COOH + O2 -> CO2 + H2O',                              name: 'Benzoic Acid Combustion', answer: [2,15,14,6] },
+    { eq: 'Al + NaOH + H2O -> NaAlO2 + H2',                          name: 'Aluminum in Lye',         answer: [2,2,2,2,3] },
   ]
 };
 
@@ -574,7 +673,43 @@ const state = {
   timeLeft: PROBLEM_TIME_LIMIT,
   mastered: (typeof localStorage !== 'undefined' && localStorage.getItem('bal-rxn-mastered') === '1'),
   queues: { prog: [[],[],[]], train: [[],[],[]], sand: [] },
+  lastFailedEq: null,     // equation string the student most recently missed
 };
+
+/* Format a balanced equation for the reveal overlay — e.g.
+   "2 H<sub>2</sub> + O<sub>2</sub> → 2 H<sub>2</sub>O", with the
+   coefficients highlighted in amber. */
+function formatBalancedHTML(problem) {
+  const { reactants, products } = splitEq(problem.eq);
+  const coeffs = problem.answer || [];
+  const sideHTML = (arr, off) => arr.map((f, i) => {
+    const c = coeffs[i + off] || 1;
+    const cTag = c > 1 ? `<span class="co">${c}</span> ` : '';
+    return cTag + f.replace(/(\d+)/g, '<sub>$1</sub>');
+  }).join(' + ');
+  return sideHTML(reactants, 0) + ' → ' + sideHTML(products, reactants.length);
+}
+function showCorrectAnswer(problem, durationMs = 3500) {
+  $('reveal-eq').innerHTML = formatBalancedHTML(problem);
+  $('reveal').classList.add('show');
+  setTimeout(() => $('reveal').classList.remove('show'), durationMs);
+}
+
+/* When returning to progressing after training, reshuffle the queue
+   AND push the most recently failed problem to the end — so students
+   can't just memorize that one equation. */
+function reshuffleProgAvoidLast() {
+  const tier = TIERS[state.progTier];
+  let order = shuffle(Array.from({length: tier.progressing.length}, (_, i) => i));
+  if (state.lastFailedEq) {
+    const failedIdx = tier.progressing.findIndex(p => p.eq === state.lastFailedEq);
+    if (failedIdx >= 0) {
+      order = order.filter(i => i !== failedIdx);
+      order.push(failedIdx);
+    }
+  }
+  state.queues.prog[state.progTier] = order;
+}
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -951,10 +1086,22 @@ function primeSpeech() {
   if (!window.speechSynthesis) return;
   try {
     const voices = window.speechSynthesis.getVoices();
-    // Target: chill male surfer-ish vibe. Try specific voices first
-    // (these are the typical US/GB male options across macOS, iOS,
-    // Chromebooks, and Windows), fall back progressively.
-    const preferred = ['reed', 'aaron', 'rocko', 'fred', 'alex', 'daniel', 'microsoft david', 'google us english'];
+    // Target: chill Cali surfer vibe. Priority order, most-natural first:
+    //  1) Premium / "enhanced" voices if the browser exposes them
+    //  2) Newer macOS/iOS casual voices (Reed, Rocko, Aaron) that actually
+    //     sound human-ish
+    //  3) Older reliable-quality voices (Alex, Daniel)
+    //  4) Google Chrome cloud voices (Google US English)
+    //  5) Anything male en-US
+    //  6) Any en voice
+    const enhanced = voices.filter(v => /enhanced|premium|siri/i.test(v.name) && /^en/i.test(v.lang));
+    if (enhanced.length) {
+      // Prefer male-sounding within enhanced set
+      cachedVoice = enhanced.find(v => /reed|rocko|aaron|alex|daniel|tom|fred/i.test(v.name))
+                 || enhanced[0];
+      speechReady = true; return;
+    }
+    const preferred = ['reed', 'rocko', 'aaron', 'alex', 'daniel', 'tom', 'fred', 'google us english', 'microsoft mark', 'microsoft david'];
     for (const want of preferred) {
       const v = voices.find(vv => vv.name.toLowerCase().includes(want));
       if (v) { cachedVoice = v; speechReady = true; return; }
@@ -989,9 +1136,9 @@ function playSuccessSound() {
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     if (cachedVoice) utter.voice = cachedVoice;
-    // Chill surfer vibe: slightly slower, slightly lower pitch, relaxed.
-    utter.rate = 0.92;
-    utter.pitch = 0.88;
+    // Chill Cali surfer: slower drawl + lower pitch = laid-back, not cheery.
+    utter.rate = 0.86;
+    utter.pitch = 0.78;
     utter.volume = 1.0;
     window.speechSynthesis.speak(utter);
   } catch (e) {}
@@ -1077,7 +1224,9 @@ function onWin() {
     state.mode = 'progressing';
     state.trainStreak = 0;
     state.progWins = 0;
-    state.queues.prog[state.progTier] = shuffle(Array.from({length: TIERS[state.progTier].progressing.length}, (_, k) => k));
+    // Reshuffle AND push the failed problem to the back of the queue
+    // so students don't get the exact same one the moment they return.
+    reshuffleProgAvoidLast();
     toast('good', `<b>Back in.</b>`);
     pickNext();
   } else {
@@ -1090,15 +1239,18 @@ function onWin() {
 function onMiss() {
   if (state.mode === 'sandbox') {
     toast('bad', `<b>Not balanced.</b>`);
-    // stay on same problem — no penalty, let them try again
-    onStart(); // re-lock/unlock so they can adjust. Actually keep it unlocked.
     $('actions').classList.add('show');
     $('eq').classList.remove('locked');
     return;
   }
   if (state.mode === 'progressing') {
-    toast('bad', `<b>Not balanced.</b> Into training.`);
-    enterTraining();
+    const current = currentPool()[state.problemIdx];
+    state.lastFailedEq = current.eq;
+    showCorrectAnswer(current, 3800);
+    // Give the student a few seconds to read the balanced answer,
+    // then drop into training. The showCorrectAnswer overlay blocks
+    // the screen so there's no interaction possible mid-delay.
+    setTimeout(() => enterTraining(), 3800);
     return;
   }
   // Training miss — reset streak, stay in training
