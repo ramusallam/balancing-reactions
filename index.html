@@ -6,500 +6,481 @@
   <title>Balancing Reactions</title>
   <style>
     :root {
-      --bg-primary: #0a0a0a;
-      --bg-secondary: #141414;
-      --bg-tertiary: #1e1e1e;
-      --text-primary: #f5f5f5;
-      --text-secondary: #a0a0a0;
-      --text-muted: #6b7280;
-      --border: rgba(255, 255, 255, 0.10);
+      --bg-0: #0f172a;          /* slate-900, cleaner than pure black */
+      --bg-1: #1e293b;          /* slate-800 — cards */
+      --bg-2: #273548;          /* slate-700 — inset */
+      --ink-hi: #f8fafc;        /* crisp white */
+      --ink-mid: #cbd5e1;       /* slate-300 */
+      --ink-low: #94a3b8;       /* slate-400 */
+      --border: rgba(148, 163, 184, 0.28);
+      --border-strong: rgba(148, 163, 184, 0.55);
 
-      /* Mode accents — swapped when body has data-mode="training" */
-      --accent: #6366f1;          /* indigo — progressing */
-      --accent-hover: #818cf8;
-      --accent-soft: rgba(99, 102, 241, 0.10);
-      --accent-ring: rgba(99, 102, 241, 0.35);
+      /* mode accents */
+      --accent: #818cf8;        /* indigo-400 — progressing */
+      --accent-hover: #a5b4fc;
+      --accent-soft: rgba(129, 140, 248, 0.14);
+      --accent-ring: rgba(129, 140, 248, 0.4);
 
-      --success: #22c55e;
-      --error: #ef4444;
-
-      --reactant: #ff7a6b;
-      --product:  #5cc9ff;
+      --success: #34d399;       /* emerald-400 */
+      --error:   #f87171;       /* red-400 */
     }
     body[data-mode="training"] {
-      --accent: #f59e0b;           /* amber — training */
-      --accent-hover: #fbbf24;
-      --accent-soft: rgba(245, 158, 11, 0.10);
-      --accent-ring: rgba(245, 158, 11, 0.38);
+      --accent: #fbbf24;        /* amber-400 */
+      --accent-hover: #fcd34d;
+      --accent-soft: rgba(251, 191, 36, 0.14);
+      --accent-ring: rgba(251, 191, 36, 0.4);
+    }
+    body[data-mode="sandbox"] {
+      --accent: #c4b5fd;        /* violet-300 */
+      --accent-hover: #ddd6fe;
+      --accent-soft: rgba(196, 181, 253, 0.14);
+      --accent-ring: rgba(196, 181, 253, 0.4);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { min-height: 100vh; }
     body {
       font-family: system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.5;
+      background: var(--bg-0);
+      color: var(--ink-hi);
+      line-height: 1.45;
       font-size: 16px;
       -webkit-font-smoothing: antialiased;
-      transition: background 300ms ease;
+      text-rendering: optimizeLegibility;
     }
 
-    /* ===== MODE BANNER — big, unmissable ===== */
-    .mode-banner {
-      background: var(--accent-soft);
-      border-bottom: 2px solid var(--accent);
-      transition: background 300ms ease, border-color 300ms ease;
-    }
-    .mode-banner-inner {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 16px 28px;
+    /* Layout */
+    .shell { max-width: 960px; margin: 0 auto; padding: 24px 28px; }
+
+    /* Top row: mode badge + tier ladder + action buttons */
+    .topbar {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
+      margin-bottom: 18px;
       flex-wrap: wrap;
     }
     .mode-badge {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       background: var(--accent);
-      color: #0a0a0a;
-      padding: 8px 16px;
+      color: #0f172a;
+      padding: 7px 16px;
       border-radius: 999px;
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 1px;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 1.2px;
       text-transform: uppercase;
     }
-    .mode-icon { font-size: 16px; line-height: 1; }
-    .mode-copy { font-size: 15px; line-height: 1.45; color: var(--text-primary); flex: 1; min-width: 200px; }
-    .mode-copy strong { color: var(--accent); }
+    .actions-right { margin-left: auto; display: flex; gap: 8px; }
 
-    /* Timer — only visible in progressing mode */
-    .timer {
-      padding: 10px 18px;
-      background: var(--bg-primary);
-      border: 2px solid var(--accent);
-      border-radius: 999px;
-      font-variant-numeric: tabular-nums;
-      font-weight: 700;
-      font-size: 20px;
-      color: var(--accent);
-      letter-spacing: 1px;
-      min-width: 96px;
-      text-align: center;
-    }
-    .timer.urgent {
-      background: rgba(239, 68, 68, 0.12);
-      border-color: var(--error);
-      color: var(--error);
-      animation: pulse 1s infinite;
-    }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
-
-    /* ===== HEADER ===== */
-    header {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 24px 28px 12px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 24px;
-      flex-wrap: wrap;
-    }
-    .brand h1 {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    .brand p {
+    .btn {
+      border-radius: 8px;
+      padding: 9px 16px;
       font-size: 14px;
-      color: var(--text-secondary);
-      margin-top: 4px;
-      max-width: 560px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-1);
+      color: var(--ink-hi);
+      font-family: inherit;
+      transition: background 120ms ease, border-color 120ms ease;
     }
-    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .btn:hover { background: var(--bg-2); border-color: var(--ink-low); }
+    .btn.primary {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+    }
+    .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 
-    /* ===== TIER LADDER ===== */
-    .ladder {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 0 28px 12px;
-    }
-    .tier-row {
-      display: flex;
-      gap: 8px;
-    }
+    /* Tier ladder — visual only */
+    .ladder { display: flex; gap: 6px; margin-bottom: 20px; }
     .tier-pill {
       flex: 1;
-      padding: 12px 14px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
+      padding: 10px 14px;
+      background: var(--bg-1);
+      border: 1.5px solid var(--border);
       border-radius: 10px;
       text-align: center;
-      transition: all 200ms ease;
       min-width: 0;
+      transition: border-color 200ms ease, background 200ms ease;
     }
-    .tier-pill .tier-label {
+    .tier-pill .tier-idx {
+      display: block;
       font-size: 11px;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: var(--ink-low);
+      font-weight: 700;
     }
     .tier-pill .tier-name {
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 15px;
+      font-weight: 700;
       margin-top: 2px;
+      color: var(--ink-mid);
     }
     .tier-pill.done {
-      background: rgba(34, 197, 94, 0.08);
-      border-color: rgba(34, 197, 94, 0.35);
+      background: rgba(52, 211, 153, 0.08);
+      border-color: rgba(52, 211, 153, 0.5);
     }
-    .tier-pill.done .tier-label { color: var(--success); }
-    .tier-pill.current-progressing {
+    .tier-pill.done .tier-idx, .tier-pill.done .tier-name { color: var(--success); }
+    .tier-pill.now {
       background: var(--accent-soft);
       border-color: var(--accent);
     }
-    .tier-pill.current-progressing .tier-label { color: var(--accent); }
-    .tier-pill.training-source {
-      background: rgba(245, 158, 11, 0.06);
-      border-color: rgba(245, 158, 11, 0.35);
+    .tier-pill.now .tier-idx, .tier-pill.now .tier-name { color: var(--accent); }
+    .tier-pill.drill {
       border-style: dashed;
+      border-color: #fbbf24;
+      background: rgba(251, 191, 36, 0.06);
     }
-    .tier-pill.training-source .tier-label { color: #f59e0b; }
+    .tier-pill.drill .tier-idx, .tier-pill.drill .tier-name { color: #fbbf24; }
 
-    /* ===== PROGRESS DOTS ===== */
-    .progress-row {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 4px 28px 12px;
+    /* Streak dots */
+    .streak {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-      color: var(--text-secondary);
-      gap: 16px;
-      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-bottom: 18px;
     }
-    .dots { display: flex; gap: 6px; }
-    .dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border);
-      transition: all 200ms ease;
+    .streak-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--bg-2);
+      border: 1.5px solid var(--border-strong);
     }
-    .dot.done { background: var(--accent); border-color: var(--accent); }
-    .dot.current { box-shadow: 0 0 0 3px var(--accent-ring); border-color: var(--accent); }
+    .streak-dot.filled { background: var(--accent); border-color: var(--accent); }
+    .streak-dot.active { box-shadow: 0 0 0 3px var(--accent-ring); border-color: var(--accent); }
 
-    /* ===== NOTICE BANNER (event-driven) ===== */
-    #notice { max-width: 960px; margin: 0 auto; padding: 4px 28px 12px; }
-    .notice-inner {
-      padding: 14px 18px;
-      border-radius: 10px;
-      font-size: 15px;
-      line-height: 1.5;
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-    }
-    .notice-info { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.3); color: #c7d2fe; }
-    .notice-success { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #bbf7d0; }
-    .notice-training { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.32); color: #fde68a; }
-    .notice-return { background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.4); color: #e0e7ff; }
-    .notice-mastered { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.4); color: #d1fae5; font-weight: 500; }
-    .notice-icon { font-size: 18px; flex-shrink: 0; line-height: 1.3; }
-
-    /* ===== MAIN CARD ===== */
-    main { max-width: 960px; margin: 0 auto; padding: 0 28px 40px; }
+    /* Card */
     .card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 28px;
-      transition: border-color 300ms ease, background 300ms ease;
+      background: var(--bg-1);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 26px;
+      transition: border-color 200ms ease;
     }
-    body[data-mode="training"] .card {
-      border-color: var(--accent);
-      background: rgba(245, 158, 11, 0.03);
-    }
+    body[data-mode="training"] .card { border-color: var(--accent); }
 
-    .problem-name {
+    /* Timer row — giant, inside the card */
+    .timer-row {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 20px;
+      background: var(--bg-2);
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      margin-bottom: 18px;
+    }
+    .timer-row.show { display: flex; }
+    .timer-row.urgent { border-color: var(--error); background: rgba(248, 113, 113, 0.10); }
+    .whisper {
+      flex: 1;
+      text-align: center;
+      font-style: italic;
+      font-size: 14px;
+      color: var(--ink-low);
+      opacity: 0;
+      transition: opacity 550ms ease;
+      pointer-events: none;
+      font-family: Georgia, ui-serif, serif;
+      letter-spacing: 0.3px;
+    }
+    .whisper.show { opacity: 0.9; }
+    .timer-row.urgent .whisper { color: var(--error); }
+    .timer-label {
       font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ink-low);
+      font-weight: 700;
+    }
+    .timer-value {
+      font-size: 40px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+    .timer-value.urgent { color: var(--error); animation: blink 0.6s infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* Start overlay — replaces action row until clicked */
+    .start-box {
+      display: block;
+      text-align: center;
+      padding: 36px 20px;
+      background: var(--accent-soft);
+      border: 2px dashed var(--accent);
+      border-radius: 12px;
+      margin-bottom: 18px;
+    }
+    .start-box.hidden { display: none; }
+    .btn-start {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 10px;
+      padding: 18px 56px;
+      font-size: 22px;
+      font-weight: 800;
       letter-spacing: 1px;
       text-transform: uppercase;
-      color: var(--accent);
-      font-weight: 700;
-      margin-bottom: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px var(--accent-ring);
+      transition: transform 120ms ease, background 120ms ease;
+      font-family: inherit;
     }
-    .problem-title {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 20px;
+    .btn-start:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .start-sub {
+      color: var(--ink-mid);
+      font-size: 13px;
+      margin-top: 12px;
+      letter-spacing: 0.3px;
     }
 
-    .equation-display {
+    /* Equation */
+    .eq {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       align-items: center;
       gap: 18px;
-      font-size: 1.4rem;
-      padding: 24px 8px;
-      background: var(--bg-tertiary);
-      border-radius: 10px;
+      padding: 28px 12px;
+      background: var(--bg-2);
+      border-radius: 12px;
       margin-bottom: 20px;
-      color: var(--text-primary);
     }
-    .molecule-ui {
+    .eq.locked { opacity: 0.35; pointer-events: none; filter: grayscale(0.4); }
+    .mol { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .step {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
     }
-    .stepper { display: flex; flex-direction: column; align-items: center; }
-    .btn-step {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      color: var(--text-primary);
-      width: 40px;
-      height: 30px;
-      cursor: pointer;
-      font-weight: 700;
+    .step-btn {
+      width: 46px; height: 32px;
+      background: var(--bg-1);
+      border: 1.5px solid var(--border-strong);
       border-radius: 6px;
-      font-size: 14px;
+      color: var(--ink-hi);
+      font-weight: 800;
+      font-size: 16px;
+      cursor: pointer;
       transition: background 120ms ease, border-color 120ms ease;
     }
-    .btn-step:hover { background: var(--accent); border-color: var(--accent); color: #0a0a0a; }
-    .coeff-val {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin: 4px 0;
+    .step-btn:hover { background: var(--accent); color: #0f172a; border-color: var(--accent); }
+    .coeff {
+      font-size: 30px;
+      font-weight: 800;
       color: var(--accent);
       font-variant-numeric: tabular-nums;
-      min-width: 28px;
+      min-width: 38px;
       text-align: center;
+      line-height: 1.1;
+      margin: 2px 0;
     }
-    .formula { font-family: ui-serif, Georgia, serif; font-size: 1.5rem; }
-    .formula sub { font-size: 0.7em; vertical-align: baseline; }
-    .plus, .arrow { color: var(--text-secondary); font-size: 1.5rem; font-weight: 300; }
+    .formula {
+      font-family: ui-serif, "Times New Roman", Georgia, serif;
+      font-size: 1.55rem;
+      font-weight: 600;
+      color: var(--ink-hi);
+    }
+    .formula sub { font-size: 0.68em; vertical-align: baseline; }
+    .op {
+      color: var(--ink-low);
+      font-size: 1.6rem;
+      font-weight: 300;
+    }
 
-    /* ===== COUNTING PROMPT (replaces the live tally — forces real counting) ===== */
-    .counting-prompt {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 18px;
-      margin-bottom: 20px;
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      color: var(--text-secondary);
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    .counting-prompt .cp-icon {
-      font-size: 18px;
-      line-height: 1.3;
-      flex-shrink: 0;
-      color: var(--accent);
-    }
-    .counting-prompt strong { color: var(--text-primary); }
-
-    /* Locked state — before Start is clicked */
-    .equation-display.locked { opacity: 0.45; pointer-events: none; filter: grayscale(0.4); }
-    .equation-display.locked .btn-step { cursor: not-allowed; }
-
-    .start-overlay {
-      text-align: center;
-      padding: 20px 0 10px;
-    }
-    .start-overlay .start-hint {
-      color: var(--text-secondary);
-      font-size: 14px;
-      margin-top: 10px;
-    }
-    .btn-start {
-      background: var(--accent);
-      color: #0a0a0a;
-      font-weight: 700;
-      padding: 14px 40px;
-      font-size: 18px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      letter-spacing: 0.5px;
-      transition: background 120ms ease;
-    }
-    .btn-start:hover { background: var(--accent-hover); }
-
-    /* ===== ACTIONS ===== */
-    .action-row {
-      display: flex;
+    /* Action row (Check/Reset) */
+    .actions {
+      display: none;
       gap: 10px;
       flex-wrap: wrap;
-      align-items: center;
     }
-    .btn {
-      border-radius: 8px;
-      padding: 12px 22px;
-      font-size: 16px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
-      border: none;
-      font-family: inherit;
+    .actions.show { display: flex; }
+    .actions .btn.primary { padding: 14px 36px; font-size: 17px; }
+
+    /* Toast / status */
+    .toast {
+      margin-bottom: 14px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      background: var(--bg-1);
+      border: 1.5px solid var(--border);
+      color: var(--ink-mid);
+      display: none;
     }
-    .btn-primary {
-      background: var(--accent);
-      color: #0a0a0a;
-      font-weight: 700;
-    }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-secondary {
-      background: var(--bg-secondary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-    }
-    .btn-secondary:hover { background: var(--bg-tertiary); border-color: rgba(255,255,255,0.2); }
-    .btn-ghost {
-      background: transparent;
-      color: var(--text-secondary);
-      border: 1px solid var(--border);
-    }
-    .btn-ghost:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.2); }
+    .toast.show { display: block; }
+    .toast.good { background: rgba(52, 211, 153, 0.08); border-color: var(--success); color: #a7f3d0; }
+    .toast.bad  { background: rgba(248, 113, 113, 0.08); border-color: var(--error); color: #fecaca; }
+    .toast.amber { background: rgba(251, 191, 36, 0.08); border-color: #fbbf24; color: #fde68a; }
+    .toast b { color: var(--ink-hi); }
 
     @media (max-width: 640px) {
-      .equation-display { font-size: 1.1rem; gap: 10px; padding: 16px 6px; }
+      .shell { padding: 16px; }
       .formula { font-size: 1.2rem; }
-      .card { padding: 18px; }
-      .mode-copy { font-size: 14px; }
+      .eq { font-size: 1rem; gap: 10px; padding: 18px 6px; }
+      .timer-value { font-size: 32px; }
+      .btn-start { padding: 14px 36px; font-size: 18px; }
+      .coeff { font-size: 24px; }
     }
   </style>
 </head>
 <body data-mode="progressing">
 
-<div class="mode-banner">
-  <div class="mode-banner-inner">
-    <span class="mode-badge" id="mode-badge">
-      <span class="mode-icon" id="mode-icon">🚀</span>
-      <span id="mode-text">PROGRESSING</span>
-    </span>
-    <span class="mode-copy" id="mode-copy">You're climbing. Solve 3 in a row at this tier to advance.</span>
-    <span class="timer" id="timer" style="display:none">2:00</span>
+<div class="shell">
+
+  <div class="topbar">
+    <span class="mode-badge" id="mode-badge">Progressing</span>
+    <span class="mode-badge" id="mode-icon" style="background:transparent;color:var(--accent);border:1.5px solid var(--accent);padding:6px 12px">Tier 1</span>
+    <div class="actions-right">
+      <button class="btn" id="sandbox-btn" style="display:none">Sandbox</button>
+      <button class="btn" id="reset-btn">Start over</button>
+    </div>
   </div>
-</div>
 
-<header>
-  <div class="brand">
-    <h1>Balancing Reactions</h1>
-    <p>Mastery mode. One wrong answer drops you into <strong>training</strong> at an easier tier. Solve 2 in a row there to earn your way back up.</p>
-  </div>
-  <div class="header-actions">
-    <button class="btn btn-ghost" id="reset-btn">Start over</button>
-  </div>
-</header>
+  <div class="ladder" id="ladder"></div>
+  <div class="streak" id="streak"></div>
 
-<div class="ladder">
-  <div class="tier-row" id="tier-row"></div>
-</div>
+  <div class="toast" id="toast"></div>
 
-<div class="progress-row">
-  <span id="progress-label">Tier 1 · 0 of 3 solved</span>
-  <span class="dots" id="dots"></span>
-</div>
-
-<div id="notice"></div>
-
-<main>
   <div class="card">
-    <div class="problem-name" id="problem-name">PROGRESSING · TIER 1</div>
-    <div class="problem-title" id="problem-title">Loading…</div>
 
-    <div class="equation-display" id="equation-target"></div>
-
-    <div class="counting-prompt">
-      <span class="cp-icon">✎</span>
-      <div id="counting-copy">
-        <strong>Count the atoms yourself.</strong> No live feedback — you have to track the totals on paper or in your head. When you think it's balanced, hit <strong>Check</strong>. Right answer: you progress. Wrong answer: straight into training. The counting IS the learning.
-      </div>
+    <div class="timer-row" id="timer-row">
+      <span class="timer-label">Time</span>
+      <span class="whisper" id="whisper"></span>
+      <span class="timer-value" id="timer-value">2:00</span>
     </div>
 
-    <div class="start-overlay" id="start-overlay">
-      <button class="btn-start" id="start-btn">Start problem</button>
-      <div class="start-hint" id="start-hint">The 2-minute timer starts the moment you click.</div>
+    <div class="start-box" id="start-box">
+      <button class="btn-start" id="start-btn">Start</button>
+      <div class="start-sub" id="start-sub">Tap to start. The 2-minute timer begins.</div>
     </div>
 
-    <div class="action-row" id="action-row" style="display:none">
-      <button class="btn btn-primary" id="check-btn">Check balance</button>
-      <button class="btn btn-secondary" id="reset-coeffs-btn">Reset coefficients</button>
+    <div class="eq locked" id="eq"></div>
+
+    <div class="actions" id="actions">
+      <button class="btn primary" id="check-btn">Check</button>
+      <button class="btn" id="reset-coeffs-btn">Reset coefficients</button>
     </div>
+
   </div>
-</main>
+
+</div>
 
 <script>
 /* ============================================================
-   Balancing Reactions · Mastery Mode
-   Two modes, two colors, one clear direction.
+   Balancing Reactions — mastery mode, minimal UI
    ============================================================ */
+
+const TRAINING_TO_EXIT = 2;
+const PROBLEM_TIME_LIMIT = 120;
+const URGENT_TIME = 20;
 
 const TIERS = [
   {
     id: 'tier1', label: 'Tier 1', name: 'Warm-up', toAdvance: 3,
-    problems: [
-      { eq: 'H2 + O2 -> H2O',       name: 'Water Synthesis' },
-      { eq: 'N2 + H2 -> NH3',       name: 'Haber Process' },
-      { eq: 'C + O2 -> CO2',        name: 'Combustion of Carbon' },
-      { eq: 'Na + Cl2 -> NaCl',     name: 'Table Salt Formation' },
-      { eq: 'H2 + Cl2 -> HCl',      name: 'Hydrogen Chloride' },
-      { eq: 'Mg + O2 -> MgO',       name: 'Magnesium Burns' },
-      { eq: 'K + Cl2 -> KCl',       name: 'Potassium Chloride' },
-      { eq: 'Li + O2 -> Li2O',      name: 'Lithium Oxide' },
-      { eq: 'Ca + O2 -> CaO',       name: 'Calcium Oxide' },
-      { eq: 'N2 + O2 -> NO',        name: 'Nitric Oxide' },
-      { eq: 'Ag + S -> Ag2S',       name: 'Silver Sulfide' },
-      { eq: 'P + O2 -> P2O5',       name: 'Phosphorus Pentoxide' },
-      { eq: 'Ba + F2 -> BaF2',      name: 'Barium Fluoride' },
-      { eq: 'Cu + S -> Cu2S',       name: 'Copper(I) Sulfide' },
-      { eq: 'K + Br2 -> KBr',       name: 'Potassium Bromide' },
-      { eq: 'Zn + O2 -> ZnO',       name: 'Zinc Oxide' },
-      { eq: 'Al + Cl2 -> AlCl3',    name: 'Aluminum Chloride' },
-      { eq: 'H2 + F2 -> HF',        name: 'Hydrogen Fluoride' },
-      { eq: 'Sn + O2 -> SnO2',      name: 'Tin Dioxide' },
-      { eq: 'H2O -> H2 + O2',       name: 'Electrolysis of Water' },
+    progressing: [
+      // Tier 1 — all require at least one coefficient > 1 to balance
+      { eq: 'H2 + O2 -> H2O',    name: 'Water Synthesis' },          // 2,1,2
+      { eq: 'N2 + H2 -> NH3',    name: 'Haber Process' },            // 1,3,2
+      { eq: 'Na + Cl2 -> NaCl',  name: 'Table Salt' },               // 2,1,2
+      { eq: 'H2 + Cl2 -> HCl',   name: 'Hydrogen Chloride' },        // 1,1,2
+      { eq: 'Mg + O2 -> MgO',    name: 'Magnesium Burns' },          // 2,1,2
+      { eq: 'K + Cl2 -> KCl',    name: 'Potassium Chloride' },       // 2,1,2
+      { eq: 'Li + O2 -> Li2O',   name: 'Lithium Oxide' },            // 4,1,2
+      { eq: 'Ca + O2 -> CaO',    name: 'Calcium Oxide' },            // 2,1,2
+      { eq: 'N2 + O2 -> NO',     name: 'Nitric Oxide' },             // 1,1,2
+      { eq: 'Ag + S -> Ag2S',    name: 'Silver Sulfide' },           // 2,1,1
+      { eq: 'P + O2 -> P2O5',    name: 'Phosphorus Pentoxide' },     // 4,5,2
+      { eq: 'Cu + S -> Cu2S',    name: 'Copper(I) Sulfide' },        // 2,1,1
+      { eq: 'K + Br2 -> KBr',    name: 'Potassium Bromide' },        // 2,1,2
+      { eq: 'Zn + O2 -> ZnO',    name: 'Zinc Oxide' },               // 2,1,2
+      { eq: 'Al + Cl2 -> AlCl3', name: 'Aluminum Chloride' },        // 2,3,2
+      { eq: 'H2 + F2 -> HF',     name: 'Hydrogen Fluoride' },        // 1,1,2
+      { eq: 'H2O -> H2 + O2',    name: 'Electrolysis' },             // 2,2,1
+      { eq: 'Na + O2 -> Na2O',   name: 'Sodium Oxide' },             // 4,1,2
+      { eq: 'Mg + N2 -> Mg3N2',  name: 'Magnesium Nitride' },        // 3,1,1
+      { eq: 'Fe + O2 -> FeO',    name: 'Iron(II) Oxide' },           // 2,1,2
+    ],
+    training: [
+      { eq: 'Sr + O2 -> SrO',    name: 'Strontium Oxide' },          // 2,1,2
+      { eq: 'Cs + Br2 -> CsBr',  name: 'Cesium Bromide' },           // 2,1,2
+      { eq: 'Be + O2 -> BeO',    name: 'Beryllium Oxide' },          // 2,1,2
+      { eq: 'Ni + O2 -> NiO',    name: 'Nickel(II) Oxide' },         // 2,1,2
+      { eq: 'Na + F2 -> NaF',    name: 'Sodium Fluoride' },          // 2,1,2
+      { eq: 'H2 + I2 -> HI',     name: 'Hydrogen Iodide' },          // 1,1,2
+      { eq: 'K + O2 -> K2O',     name: 'Potassium Oxide' },          // 4,1,2
+      { eq: 'Rb + Cl2 -> RbCl',  name: 'Rubidium Chloride' },        // 2,1,2
+      { eq: 'Al + Br2 -> AlBr3', name: 'Aluminum Bromide' },         // 2,3,2
+      { eq: 'Cd + O2 -> CdO',    name: 'Cadmium Oxide' },            // 2,1,2
+      { eq: 'Hg + O2 -> HgO',    name: 'Mercury(II) Oxide' },        // 2,1,2
+      { eq: 'Fe + Cl2 -> FeCl3', name: 'Iron(III) Chloride' },       // 2,3,2
+      { eq: 'Li + H2 -> LiH',    name: 'Lithium Hydride' },          // 2,1,2
+      { eq: 'Cs + O2 -> Cs2O',   name: 'Cesium Oxide' },             // 4,1,2
+      { eq: 'Rb + O2 -> Rb2O',   name: 'Rubidium Oxide' },           // 4,1,2
+      { eq: 'Ag + O2 -> Ag2O',   name: 'Silver(I) Oxide' },          // 4,1,2
+      { eq: 'Cu + O2 -> CuO',    name: 'Copper(II) Oxide' },         // 2,1,2
+      { eq: 'Al + N2 -> AlN',    name: 'Aluminum Nitride' },         // 2,1,2
+      { eq: 'Ba + O2 -> BaO',    name: 'Barium Oxide' },             // 2,1,2
+      { eq: 'Ga + Cl2 -> GaCl3', name: 'Gallium Trichloride' },      // 2,3,2
     ]
   },
   {
     id: 'tier2', label: 'Tier 2', name: 'Harder', toAdvance: 3,
-    problems: [
-      { eq: 'KClO3 -> KCl + O2',                          name: 'Decomposition' },
-      { eq: 'Al + O2 -> Al2O3',                           name: 'Aluminum Oxide' },
-      { eq: 'Fe + O2 -> Fe2O3',                           name: 'Iron(III) Oxide' },
-      { eq: 'C3H8 + O2 -> CO2 + H2O',                     name: 'Propane Combustion' },
-      { eq: 'CH4 + O2 -> CO2 + H2O',                      name: 'Methane Combustion' },
-      { eq: 'Zn + HCl -> ZnCl2 + H2',                     name: 'Zinc + Acid' },
-      { eq: 'C2H6 + O2 -> CO2 + H2O',                     name: 'Ethane Combustion' },
-      { eq: 'Na + H2O -> NaOH + H2',                      name: 'Sodium in Water' },
-      { eq: 'Fe + HCl -> FeCl3 + H2',                     name: 'Iron + Hydrochloric' },
-      { eq: 'NH3 + O2 -> NO + H2O',                       name: 'Ammonia Oxidation' },
-      { eq: 'CaCO3 -> CaO + CO2',                         name: 'Limestone Decomp' },
-      { eq: 'C5H12 + O2 -> CO2 + H2O',                    name: 'Pentane Combustion' },
-      { eq: 'SiO2 + HF -> SiF4 + H2O',                    name: 'Silica + HF' },
-      { eq: 'Cl2 + NaBr -> NaCl + Br2',                   name: 'Halogen Displacement' },
-      { eq: 'KOH + H2SO4 -> K2SO4 + H2O',                 name: 'Neutralization' },
-      { eq: 'NH4NO3 -> N2O + H2O',                        name: 'Ammonium Nitrate' },
-      { eq: 'Ag2O -> Ag + O2',                            name: 'Silver Oxide Decomp' },
-      { eq: 'AgNO3 + CaCl2 -> AgCl + Ca(NO3)2',           name: 'Silver + Calcium Chloride' },
-      { eq: 'Mg + HCl -> MgCl2 + H2',                     name: 'Magnesium + Acid' },
-      { eq: 'Ba(OH)2 + H3PO4 -> Ba3(PO4)2 + H2O',         name: 'Barium Phosphate' },
+    progressing: [
+      { eq: 'KClO3 -> KCl + O2',                 name: 'Decomposition' },
+      { eq: 'Al + O2 -> Al2O3',                  name: 'Aluminum Oxide' },
+      { eq: 'Fe + O2 -> Fe2O3',                  name: 'Iron(III) Oxide' },
+      { eq: 'C3H8 + O2 -> CO2 + H2O',            name: 'Propane Combustion' },
+      { eq: 'CH4 + O2 -> CO2 + H2O',             name: 'Methane Combustion' },
+      { eq: 'Zn + HCl -> ZnCl2 + H2',            name: 'Zinc + Acid' },
+      { eq: 'C2H6 + O2 -> CO2 + H2O',            name: 'Ethane Combustion' },
+      { eq: 'Na + H2O -> NaOH + H2',             name: 'Sodium in Water' },
+      { eq: 'Fe + HCl -> FeCl3 + H2',            name: 'Iron + Hydrochloric' },
+      { eq: 'NH3 + O2 -> NO + H2O',              name: 'Ammonia Oxidation' },
+      { eq: 'C5H12 + O2 -> CO2 + H2O',           name: 'Pentane Combustion' },
+      { eq: 'SiO2 + HF -> SiF4 + H2O',           name: 'Silica + HF' },
+      { eq: 'Cl2 + NaBr -> NaCl + Br2',          name: 'Halogen Displacement' },
+      { eq: 'KOH + H2SO4 -> K2SO4 + H2O',        name: 'Neutralization' },
+      { eq: 'NH4NO3 -> N2O + H2O',               name: 'Ammonium Nitrate' },
+      { eq: 'Ag2O -> Ag + O2',                   name: 'Silver Oxide Decomp' },
+      { eq: 'AgNO3 + CaCl2 -> AgCl + Ca(NO3)2',  name: 'Silver + CaCl2' },
+      { eq: 'Mg + HCl -> MgCl2 + H2',            name: 'Magnesium + Acid' },
+      { eq: 'Ba(OH)2 + H3PO4 -> Ba3(PO4)2 + H2O',name: 'Barium Phosphate' },
+    ],
+    training: [
+      { eq: 'C2H4 + O2 -> CO2 + H2O',            name: 'Ethylene Combustion' },
+      { eq: 'Ba + H2O -> Ba(OH)2 + H2',          name: 'Barium in Water' },
+      { eq: 'Ca + HCl -> CaCl2 + H2',            name: 'Calcium + Acid' },
+      { eq: 'C6H6 + O2 -> CO2 + H2O',            name: 'Benzene Combustion' },
+      { eq: 'FeO + HCl -> FeCl2 + H2O',          name: 'Iron(II) + Acid' },
+      { eq: 'Fe2O3 + HCl -> FeCl3 + H2O',        name: 'Iron(III) + Acid' },
+      { eq: 'KOH + CO2 -> K2CO3 + H2O',          name: 'KOH + CO2' },
+      { eq: 'HgO -> Hg + O2',                    name: 'Mercury Oxide Decomp' },
+      { eq: 'Al2O3 + HCl -> AlCl3 + H2O',        name: 'Alumina + Acid' },
+      { eq: 'KNO3 -> KNO2 + O2',                 name: 'KNO3 Decomp' },
+      { eq: 'Li + H2O -> LiOH + H2',             name: 'Lithium in Water' },
+      { eq: 'Na2CO3 + HCl -> NaCl + H2O + CO2',  name: 'Soda Ash + Acid' },
+      { eq: 'C2H2 + O2 -> CO2 + H2O',            name: 'Acetylene Combustion' },
+      { eq: 'KOH + H3PO4 -> K3PO4 + H2O',        name: 'Potassium Phosphate' },
+      { eq: 'Mg + N2 -> Mg3N2',                  name: 'Magnesium Nitride' },
+      { eq: 'Al(OH)3 + HCl -> AlCl3 + H2O',      name: 'Al(OH)3 + HCl' },
+      { eq: 'NaHCO3 -> Na2CO3 + H2O + CO2',      name: 'Baking Soda Decomp' },
+      { eq: 'Cu(NO3)2 -> CuO + NO2 + O2',        name: 'Cu(NO3)2 Decomp' },
+      { eq: 'Ca(OH)2 + HCl -> CaCl2 + H2O',      name: 'Slaked Lime + Acid' },
     ]
   },
   {
     id: 'tier3', label: 'Tier 3', name: 'Boss', toAdvance: 2,
-    problems: [
+    progressing: [
       { eq: 'Fe2O3 + CO -> Fe + CO2',                     name: 'Blast Furnace' },
       { eq: 'KMnO4 + HCl -> KCl + MnCl2 + H2O + Cl2',     name: 'Permanganate Redox' },
       { eq: 'C6H12O6 + O2 -> CO2 + H2O',                  name: 'Cellular Respiration' },
@@ -508,18 +489,67 @@ const TIERS = [
       { eq: 'Al + H2SO4 -> Al2(SO4)3 + H2',               name: 'Aluminum + Sulfuric' },
       { eq: 'FeS2 + O2 -> Fe2O3 + SO2',                   name: 'Pyrite Roasting' },
       { eq: 'C4H10 + O2 -> CO2 + H2O',                    name: 'Butane Combustion' },
-      { eq: 'Pb(NO3)2 + KI -> PbI2 + KNO3',               name: 'Lead Iodide Precipitate' },
-      { eq: 'BaCl2 + Al2(SO4)3 -> BaSO4 + AlCl3',         name: 'Sulfate Double-Replace' },
-      { eq: 'P4 + O2 -> P4O10',                           name: 'White Phosphorus Burns' },
+      { eq: 'Pb(NO3)2 + KI -> PbI2 + KNO3',               name: 'Lead Iodide' },
+      { eq: 'BaCl2 + Al2(SO4)3 -> BaSO4 + AlCl3',         name: 'Sulfate Precipitate' },
+      { eq: 'P4 + O2 -> P4O10',                           name: 'White Phosphorus' },
       { eq: 'N2H4 + N2O4 -> N2 + H2O',                    name: 'Rocket Propellant' },
-      { eq: 'H2O2 -> H2O + O2',                           name: 'Peroxide Decomposition' },
-      { eq: 'S + HNO3 -> H2SO4 + NO2 + H2O',              name: 'Sulfur + Nitric Acid' },
+      { eq: 'H2O2 -> H2O + O2',                           name: 'Peroxide Decomp' },
+      { eq: 'S + HNO3 -> H2SO4 + NO2 + H2O',              name: 'Sulfur + Nitric' },
       { eq: '(NH4)2Cr2O7 -> N2 + Cr2O3 + H2O',            name: 'Volcano Reaction' },
+    ],
+    training: [
+      { eq: 'CaCO3 + HCl -> CaCl2 + H2O + CO2',           name: 'Limestone + Acid' },
+      { eq: 'Sb2S3 + HCl -> SbCl3 + H2S',                 name: 'Antimony Sulfide' },
+      { eq: 'MnO2 + HCl -> MnCl2 + Cl2 + H2O',            name: 'Chlorine Gas Prep' },
+      { eq: 'Al + HNO3 -> Al(NO3)3 + H2',                 name: 'Aluminum + Nitric' },
+      { eq: 'Mg3N2 + H2O -> Mg(OH)2 + NH3',               name: 'Mg3N2 Hydrolysis' },
+      { eq: 'Ba(ClO3)2 -> BaCl2 + O2',                    name: 'Ba Chlorate Decomp' },
+      { eq: 'NH3 + CuO -> Cu + N2 + H2O',                 name: 'Ammonia Reduction' },
+      { eq: 'C3H6 + O2 -> CO2 + H2O',                     name: 'Propene Combustion' },
+      { eq: 'Na2S + HCl -> NaCl + H2S',                   name: 'Na2S + Acid' },
+      { eq: 'Fe + H2SO4 -> Fe2(SO4)3 + H2',               name: 'Iron + Sulfuric' },
+      { eq: 'P4 + Cl2 -> PCl3',                           name: 'PCl3 Synthesis' },
+      { eq: 'K2CO3 + HCl -> KCl + H2O + CO2',             name: 'Potash + Acid' },
+      { eq: 'NaCl + H2SO4 -> Na2SO4 + HCl',               name: 'Sulfuric + Salt' },
+      { eq: 'Ag2O + HNO3 -> AgNO3 + H2O',                 name: 'Ag2O + Nitric' },
+      { eq: 'Bi(NO3)3 + H2S -> Bi2S3 + HNO3',             name: 'Bismuth Sulfide' },
     ]
   }
 ];
 
-/* Fisher-Yates shuffle */
+const SANDBOX = {
+  problems: [
+    { eq: 'C7H16 + O2 -> CO2 + H2O',                                 name: 'Heptane Combustion' },
+    { eq: 'C10H22 + O2 -> CO2 + H2O',                                name: 'Decane Combustion' },
+    { eq: 'HNO3 + H2S -> NO + S + H2O',                              name: 'Nitric + H2S' },
+    { eq: 'Al + Fe2O3 -> Al2O3 + Fe',                                name: 'Thermite' },
+    { eq: 'NaOH + H3PO4 -> Na3PO4 + H2O',                            name: 'Tribasic Neutralization' },
+    { eq: 'C12H22O11 + O2 -> CO2 + H2O',                             name: 'Sucrose Combustion' },
+    { eq: 'Fe + O2 + H2O -> Fe(OH)3',                                name: 'Rust Formation' },
+    { eq: 'KMnO4 + FeSO4 + H2SO4 -> K2SO4 + MnSO4 + Fe2(SO4)3 + H2O',name: 'Permanganate Titration' },
+    { eq: 'Zn + HNO3 -> Zn(NO3)2 + N2O + H2O',                       name: 'Zinc + Dilute Nitric' },
+    { eq: 'C2H5OH + O2 -> CO2 + H2O',                                name: 'Ethanol Combustion' },
+  ]
+};
+
+/* ============================================================
+   State
+   ============================================================ */
+const state = {
+  mode: 'progressing',    // progressing | training | sandbox
+  progTier: 0,            // tier index 0..2
+  progWins: 0,
+  trainTier: 0,
+  trainStreak: 0,
+  problemIdx: 0,
+  coeffs: [],
+  started: false,
+  timerId: null,
+  timeLeft: PROBLEM_TIME_LIMIT,
+  mastered: (typeof localStorage !== 'undefined' && localStorage.getItem('bal-rxn-mastered') === '1'),
+  queues: { prog: [[],[],[]], train: [[],[],[]], sand: [] },
+};
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -529,40 +559,47 @@ function shuffle(arr) {
   return a;
 }
 
-const TRAINING_TO_EXIT = 2;      // solve this many in a row to escape training
-const PROBLEM_TIME_LIMIT = 120;  // seconds per problem in progressing mode
-const URGENT_TIME = 20;          // seconds below which the timer goes red
-
-/* ============================================================
-   State
-   ============================================================ */
-const state = {
-  mode: 'progressing',    // 'progressing' | 'training'
-  progressingTier: 0,     // the tier they're currently working toward advancing
-  progressingWins: 0,     // wins at that tier this pass
-  trainingTier: 0,        // the tier they're training on (lower than progressingTier)
-  trainingStreak: 0,      // consecutive wins in training
-  problemIdx: 0,          // raw index into TIERS[activeTier].problems
-  coeffs: [],
-  started: false,         // has the student clicked Start on the current problem?
-  timerId: null,
-  timeLeft: PROBLEM_TIME_LIMIT,
-  queues: [[], [], []],   // shuffled problem-index queues per tier (pop-from-front)
-};
-
-/* Refill a tier's shuffled queue so students get fresh problems on every cycle */
-function refillQueue(tierIdx) {
-  const len = TIERS[tierIdx].problems.length;
-  state.queues[tierIdx] = shuffle(Array.from({length: len}, (_, i) => i));
-}
-function refillAllQueues() { TIERS.forEach((_, i) => refillQueue(i)); }
-
-function activeTierIdx() {
-  return state.mode === 'training' ? state.trainingTier : state.progressingTier;
+function currentPool() {
+  if (state.mode === 'sandbox') return SANDBOX.problems;
+  if (state.mode === 'training') return TIERS[state.trainTier].training;
+  return TIERS[state.progTier].progressing;
 }
 
+function currentTierIdx() {
+  return state.mode === 'training' ? state.trainTier : state.progTier;
+}
+
+function refillQueue() {
+  const pool = currentPool();
+  const order = shuffle(Array.from({length: pool.length}, (_, i) => i));
+  if (state.mode === 'sandbox') { state.queues.sand = order; return; }
+  if (state.mode === 'training') { state.queues.train[state.trainTier] = order; return; }
+  state.queues.prog[state.progTier] = order;
+}
+
+function currentQueue() {
+  if (state.mode === 'sandbox') return state.queues.sand;
+  if (state.mode === 'training') return state.queues.train[state.trainTier];
+  return state.queues.prog[state.progTier];
+}
+
+function refillAll() {
+  // Refill every possible queue so the bank always feels fresh on restart
+  TIERS.forEach((_, i) => {
+    state.queues.prog[i] = shuffle(Array.from({length: TIERS[i].progressing.length}, (_, k) => k));
+    state.queues.train[i] = shuffle(Array.from({length: TIERS[i].training.length}, (_, k) => k));
+  });
+  state.queues.sand = shuffle(Array.from({length: SANDBOX.problems.length}, (_, k) => k));
+}
+
+function pickNext() {
+  let q = currentQueue();
+  if (!q || q.length === 0) { refillQueue(); q = currentQueue(); }
+  state.problemIdx = q.shift();
+}
+
 /* ============================================================
-   Formula parser
+   Parser + balance checker
    ============================================================ */
 function parse(formula) {
   let f = formula.replace(/\(([^)]+)\)(\d+)/g, (m, g, mult) =>
@@ -571,7 +608,6 @@ function parse(formula) {
   f.replace(/([A-Z][a-z]*)(\d*)/g, (m, el, c) => { res[el] = (res[el] || 0) + parseInt(c || 1); });
   return res;
 }
-
 function splitEq(eq) {
   const [l, r] = eq.split('->');
   return {
@@ -579,256 +615,8 @@ function splitEq(eq) {
     products:  r.split('+').map(s => s.trim()),
   };
 }
-
-function $(id){ return document.getElementById(id); }
-
-/* ============================================================
-   Render: mode banner
-   ============================================================ */
-function renderMode() {
-  document.body.dataset.mode = state.mode;
-  if (state.mode === 'progressing') {
-    $('mode-icon').textContent = '🚀';
-    $('mode-text').textContent = 'PROGRESSING';
-    const tier = TIERS[state.progressingTier];
-    const remaining = tier.toAdvance - state.progressingWins;
-    $('mode-copy').innerHTML =
-      remaining === tier.toAdvance
-        ? `You're climbing. Solve <strong>${tier.toAdvance} in a row</strong> at ${tier.label} to advance.`
-        : `You're ${state.progressingWins} of ${tier.toAdvance} toward advancing. <strong>${remaining} more in a row</strong> and you clear this tier.`;
-  } else {
-    $('mode-icon').textContent = '💪';
-    $('mode-text').textContent = 'IN TRAINING';
-    const remaining = TRAINING_TO_EXIT - state.trainingStreak;
-    const stuckTier = TIERS[state.progressingTier];
-    $('mode-copy').innerHTML =
-      `Building foundation. Solve <strong>${remaining} more in a row</strong> to return to progressing at <strong>${stuckTier.label}: ${stuckTier.name}</strong>. Miss one and the streak restarts.`;
-  }
-}
-
-/* ============================================================
-   Render: tier ladder (the same 3 pills; state of each changes)
-   ============================================================ */
-function renderTierPills() {
-  const row = $('tier-row');
-  row.innerHTML = '';
-  TIERS.forEach((t, i) => {
-    const pill = document.createElement('div');
-    let cls = 'tier-pill';
-    let label;
-    // Label logic
-    if (i < state.progressingTier) {
-      cls += ' done'; label = '✓ Cleared';
-    } else if (i === state.progressingTier) {
-      if (state.mode === 'progressing') { cls += ' current-progressing'; label = 'Progressing'; }
-      else { label = 'Return here'; }
-    } else {
-      label = 'Locked';
-    }
-    // Training source (the easier tier they're drilling on)
-    if (state.mode === 'training' && i === state.trainingTier) {
-      cls += ' training-source'; label = 'In training';
-    }
-    pill.className = cls;
-    pill.innerHTML = `<div class="tier-label">${label}</div><div class="tier-name">${t.label}: ${t.name}</div>`;
-    row.appendChild(pill);
-  });
-}
-
-/* ============================================================
-   Render: progress dots + label
-   ============================================================ */
-function renderDots() {
-  const wrap = $('dots');
-  wrap.innerHTML = '';
-  if (state.mode === 'progressing') {
-    const tier = TIERS[state.progressingTier];
-    for (let i = 0; i < tier.toAdvance; i++) {
-      const d = document.createElement('span');
-      d.className = 'dot' + (i < state.progressingWins ? ' done' : i === state.progressingWins ? ' current' : '');
-      wrap.appendChild(d);
-    }
-    $('progress-label').textContent = `Progressing · ${tier.label} — ${state.progressingWins} of ${tier.toAdvance} in a row`;
-  } else {
-    for (let i = 0; i < TRAINING_TO_EXIT; i++) {
-      const d = document.createElement('span');
-      d.className = 'dot' + (i < state.trainingStreak ? ' done' : i === state.trainingStreak ? ' current' : '');
-      wrap.appendChild(d);
-    }
-    $('progress-label').textContent = `Training · ${TIERS[state.trainingTier].label} — ${state.trainingStreak} of ${TRAINING_TO_EXIT} in a row to exit`;
-  }
-}
-
-/* ============================================================
-   Render: current problem
-   ============================================================ */
-function renderProblem() {
-  const tier = TIERS[activeTierIdx()];
-  const problem = tier.problems[state.problemIdx];
-  $('problem-name').textContent =
-    state.mode === 'progressing'
-      ? `PROGRESSING · ${tier.label.toUpperCase()} · ${tier.name.toUpperCase()}`
-      : `IN TRAINING · ${tier.label.toUpperCase()} DRILL`;
-  $('problem-title').textContent = problem.name;
-
-  const { reactants, products } = splitEq(problem.eq);
-  state.coeffs = new Array(reactants.length + products.length).fill(1);
-
-  const target = $('equation-target');
-  target.innerHTML = '';
-
-  const buildMol = (formula, idx) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'molecule-ui';
-    wrap.innerHTML = `
-      <div class="stepper">
-        <button class="btn-step" data-idx="${idx}" data-delta="1" aria-label="Increase">▲</button>
-        <span class="coeff-val" id="c-${idx}">1</span>
-        <button class="btn-step" data-idx="${idx}" data-delta="-1" aria-label="Decrease">▼</button>
-      </div>
-      <span class="formula">${formula.replace(/(\d+)/g, '<sub>$1</sub>')}</span>
-    `;
-    return wrap;
-  };
-
-  reactants.forEach((m, i) => {
-    target.appendChild(buildMol(m, i));
-    if (i < reactants.length - 1) {
-      const p = document.createElement('span'); p.className = 'plus'; p.textContent = '+'; target.appendChild(p);
-    }
-  });
-  const arrow = document.createElement('span'); arrow.className = 'arrow'; arrow.textContent = '→'; target.appendChild(arrow);
-  products.forEach((m, i) => {
-    const globalIdx = i + reactants.length;
-    target.appendChild(buildMol(m, globalIdx));
-    if (i < products.length - 1) {
-      const p = document.createElement('span'); p.className = 'plus'; p.textContent = '+'; target.appendChild(p);
-    }
-  });
-
-  target.querySelectorAll('.btn-step').forEach(b => {
-    b.addEventListener('click', () => {
-      if (!state.started) return;
-      const idx = parseInt(b.dataset.idx);
-      const delta = parseInt(b.dataset.delta);
-      state.coeffs[idx] = Math.max(1, Math.min(30, state.coeffs[idx] + delta));
-      $(`c-${idx}`).textContent = state.coeffs[idx];
-    });
-  });
-
-  // Reset the started state on each new problem — student must click Start
-  state.started = false;
-  stopTimer();
-  target.classList.add('locked');
-  $('start-overlay').style.display = 'block';
-  $('action-row').style.display = 'none';
-  $('timer').style.display = 'none';
-
-  // Counting guide only visible in Tier 1. Once students are past the warm-up
-  // the prompt is assumed — showing it again is noise.
-  const guide = document.querySelector('.counting-prompt');
-  if (guide) guide.style.display = activeTierIdx() === 0 ? 'flex' : 'none';
-
-  // In training mode the Start button doesn't wind a clock — it just commits
-  // the student to the drill. Consistent gate across modes, different label.
-  if (state.mode === 'training') {
-    $('start-btn').textContent = 'Start drill';
-    $('start-hint').textContent = 'No timer in training. Take your time, count carefully, submit when ready.';
-  } else {
-    $('start-btn').textContent = 'Start problem';
-    $('start-hint').textContent = `The ${Math.floor(PROBLEM_TIME_LIMIT/60)}-minute timer starts the moment you click.`;
-  }
-
-  renderMode();
-  renderTierPills();
-  renderDots();
-}
-
-/* ============================================================
-   Start / timer
-   ============================================================ */
-function onStart() {
-  if (state.started) return;
-  state.started = true;
-  $('equation-target').classList.remove('locked');
-  $('start-overlay').style.display = 'none';
-  $('action-row').style.display = 'flex';
-  if (state.mode === 'progressing') startTimer();
-}
-
-function startTimer() {
-  stopTimer();
-  state.timeLeft = PROBLEM_TIME_LIMIT;
-  renderTimer();
-  $('timer').style.display = 'inline-block';
-  state.timerId = setInterval(() => {
-    state.timeLeft--;
-    renderTimer();
-    if (state.timeLeft <= 0) {
-      stopTimer();
-      onTimeout();
-    }
-  }, 1000);
-}
-
-function stopTimer() {
-  if (state.timerId) { clearInterval(state.timerId); state.timerId = null; }
-  const t = $('timer');
-  if (t) { t.style.display = 'none'; t.classList.remove('urgent'); }
-}
-
-function renderTimer() {
-  const m = Math.floor(state.timeLeft / 60);
-  const s = state.timeLeft % 60;
-  const el = $('timer');
-  el.textContent = `${m}:${String(s).padStart(2, '0')}`;
-  if (state.timeLeft <= URGENT_TIME) el.classList.add('urgent');
-  else el.classList.remove('urgent');
-}
-
-function onTimeout() {
-  // Same consequence as a wrong submit: into training.
-  const stuckTier = TIERS[state.progressingTier];
-  state.mode = 'training';
-  state.trainingTier = Math.max(0, state.progressingTier - 1);
-  state.trainingStreak = 0;
-  state.progressingWins = 0;
-  state.problemIdx = 0;
-  const trainTier = TIERS[state.trainingTier];
-  notice('training', `<strong>Time's up.</strong> Into training at <strong>${trainTier.label}: ${trainTier.name}</strong>. No timer in training — solve ${TRAINING_TO_EXIT} in a row to return to ${stuckTier.label}.`);
-  renderProblem();
-}
-
-/* ============================================================
-   Success sound — C major arpeggio via Web Audio
-   ============================================================ */
-let audioCtx = null;
-function playSuccessSound() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    const now = audioCtx.currentTime;
-    // C major triad arpeggio up: C5 E5 G5 C6 — quick, triumphant, satisfying
-    const notes = [523.25, 659.25, 783.99, 1046.50];
-    notes.forEach((freq, i) => {
-      const delay = i * 0.065;
-      const osc = audioCtx.createOscillator();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      const gain = audioCtx.createGain();
-      gain.gain.setValueAtTime(0, now + delay);
-      gain.gain.linearRampToValueAtTime(0.18, now + delay + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.75);
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start(now + delay);
-      osc.stop(now + delay + 0.8);
-    });
-  } catch (e) { /* silently ignore */ }
-}
-
-function tallyTotals() {
-  const tier = TIERS[activeTierIdx()];
-  const problem = tier.problems[state.problemIdx];
+function isBalanced() {
+  const problem = currentPool()[state.problemIdx];
   const { reactants, products } = splitEq(problem.eq);
   const left = {}, right = {};
   reactants.forEach((f, i) => {
@@ -840,122 +628,379 @@ function tallyTotals() {
     const idx = i + reactants.length;
     for (const el in p) right[el] = (right[el] || 0) + p[el] * state.coeffs[idx];
   });
-  return { left, right };
-}
-
-function isBalanced() {
-  const { left, right } = tallyTotals();
   const all = new Set([...Object.keys(left), ...Object.keys(right)]);
   for (const el of all) if ((left[el] || 0) !== (right[el] || 0)) return false;
   return true;
 }
 
 /* ============================================================
-   Notices
+   Render
    ============================================================ */
-function notice(kind, html) {
-  $('notice').innerHTML = `<div class="notice-inner notice-${kind}"><span class="notice-icon">${
-    kind === 'success' ? '✓' :
-    kind === 'training' ? '↓' :
-    kind === 'return' ? '↑' :
-    kind === 'mastered' ? '★' : 'ℹ'
-  }</span><div>${html}</div></div>`;
+const $ = id => document.getElementById(id);
+
+function renderTopbar() {
+  document.body.dataset.mode = state.mode;
+  const modeMap = { progressing: 'Progressing', training: 'Training', sandbox: 'Sandbox' };
+  $('mode-badge').textContent = modeMap[state.mode];
+  const tier = state.mode === 'sandbox' ? SANDBOX : TIERS[currentTierIdx()];
+  $('mode-icon').textContent = tier.label + (tier.name ? ' · ' + tier.name : '');
+  $('sandbox-btn').style.display = state.mastered && state.mode !== 'sandbox' ? 'inline-block' : 'none';
+  $('sandbox-btn').textContent = 'Sandbox';
+  $('reset-btn').textContent = state.mode === 'sandbox' ? 'Exit sandbox' : 'Start over';
+}
+
+function renderLadder() {
+  const row = $('ladder');
+  row.innerHTML = '';
+  if (state.mode === 'sandbox') {
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = 'flex';
+  TIERS.forEach((t, i) => {
+    let cls = 'tier-pill';
+    if (i < state.progTier) cls += ' done';
+    else if (i === state.progTier && state.mode === 'progressing') cls += ' now';
+    if (state.mode === 'training' && i === state.trainTier) cls += ' drill';
+    const pill = document.createElement('div');
+    pill.className = cls;
+    pill.innerHTML = `<span class="tier-idx">${t.label}</span><span class="tier-name">${t.name}</span>`;
+    row.appendChild(pill);
+  });
+}
+
+function renderStreak() {
+  const wrap = $('streak');
+  wrap.innerHTML = '';
+  if (state.mode === 'sandbox') {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'flex';
+  const inProg = state.mode === 'progressing';
+  const total = inProg ? TIERS[state.progTier].toAdvance : TRAINING_TO_EXIT;
+  const filled = inProg ? state.progWins : state.trainStreak;
+  for (let i = 0; i < total; i++) {
+    const d = document.createElement('span');
+    d.className = 'streak-dot' + (i < filled ? ' filled' : i === filled ? ' active' : '');
+    wrap.appendChild(d);
+  }
+}
+
+function renderProblem() {
+  const pool = currentPool();
+  const problem = pool[state.problemIdx];
+  const { reactants, products } = splitEq(problem.eq);
+  state.coeffs = new Array(reactants.length + products.length).fill(1);
+
+  const target = $('eq');
+  target.innerHTML = '';
+
+  const mkMol = (formula, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'mol';
+    wrap.innerHTML = `
+      <div class="step">
+        <button class="step-btn" data-idx="${idx}" data-delta="1">▲</button>
+        <span class="coeff" id="c-${idx}">1</span>
+        <button class="step-btn" data-idx="${idx}" data-delta="-1">▼</button>
+      </div>
+      <span class="formula">${formula.replace(/(\d+)/g, '<sub>$1</sub>')}</span>
+    `;
+    return wrap;
+  };
+
+  reactants.forEach((m, i) => {
+    target.appendChild(mkMol(m, i));
+    if (i < reactants.length - 1) {
+      const op = document.createElement('span'); op.className = 'op'; op.textContent = '+'; target.appendChild(op);
+    }
+  });
+  const arrow = document.createElement('span'); arrow.className = 'op'; arrow.textContent = '→'; target.appendChild(arrow);
+  products.forEach((m, i) => {
+    const gi = i + reactants.length;
+    target.appendChild(mkMol(m, gi));
+    if (i < products.length - 1) {
+      const op = document.createElement('span'); op.className = 'op'; op.textContent = '+'; target.appendChild(op);
+    }
+  });
+
+  target.querySelectorAll('.step-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      if (!state.started) return;
+      const idx = parseInt(b.dataset.idx);
+      const delta = parseInt(b.dataset.delta);
+      state.coeffs[idx] = Math.max(1, Math.min(30, state.coeffs[idx] + delta));
+      $(`c-${idx}`).textContent = state.coeffs[idx];
+    });
+  });
+
+  // Gate the problem until the student taps Start
+  state.started = false;
+  stopTimer();
+  target.classList.add('locked');
+  $('start-box').classList.remove('hidden');
+  $('actions').classList.remove('show');
+  $('timer-row').classList.remove('show', 'urgent');
+  $('timer-value').classList.remove('urgent');
+
+  // Contextual Start copy (training + sandbox = no timer)
+  if (state.mode === 'progressing') {
+    $('start-sub').textContent = 'Tap to start. The 2-minute timer begins.';
+  } else if (state.mode === 'training') {
+    $('start-sub').textContent = 'No timer in training. Tap when ready.';
+  } else {
+    $('start-sub').textContent = 'Sandbox — no timer, no penalty.';
+  }
+
+  renderTopbar();
+  renderLadder();
+  renderStreak();
 }
 
 /* ============================================================
-   Problem selection — pop from a shuffled queue for that tier.
-   When the queue empties, reshuffle — so students see every problem
-   once before any repeat, and every pass through the tier is a new
-   order. Same mechanism for both progressing and training.
+   Start + timer
    ============================================================ */
-function pickNextProblem() {
-  const i = activeTierIdx();
-  if (!state.queues[i] || state.queues[i].length === 0) refillQueue(i);
-  state.problemIdx = state.queues[i].shift();
+function onStart() {
+  if (state.started) return;
+  state.started = true;
+  $('eq').classList.remove('locked');
+  $('start-box').classList.add('hidden');
+  $('actions').classList.add('show');
+  if (state.mode === 'progressing') startTimer();
+}
+
+function startTimer() {
+  stopTimer();
+  state.timeLeft = PROBLEM_TIME_LIMIT;
+  renderTimer();
+  $('timer-row').classList.add('show');
+  state.timerId = setInterval(() => {
+    state.timeLeft--;
+    renderTimer();
+    if (state.timeLeft <= 0) {
+      stopTimer();
+      onTimeout();
+    }
+  }, 1000);
+  startWhispers();
+}
+
+function stopTimer() {
+  if (state.timerId) { clearInterval(state.timerId); state.timerId = null; }
+  $('timer-row').classList.remove('show', 'urgent');
+  $('timer-value').classList.remove('urgent');
+  stopWhispers();
 }
 
 /* ============================================================
-   Core flow
+   Whispers — taunts that fade in/out next to the timer to apply
+   gentle pressure without being a full-screen distraction.
    ============================================================ */
+const TAUNTS = [
+  "you can't do it…",
+  "tick. tock.",
+  "give up?",
+  "you're overthinking it.",
+  "time's slipping.",
+  "too hard for you?",
+  "quit while you're ahead…",
+  "this one's a trap.",
+  "pay attention.",
+  "you were wrong last time.",
+  "keep guessing.",
+  "why bother?",
+  "almost… no.",
+  "the clock is watching.",
+  "you'll never make it.",
+];
+let whisperTimerId = null;
+let whisperHideId = null;
+function startWhispers() {
+  stopWhispers();
+  const loop = () => {
+    const delay = 8000 + Math.random() * 7000; // 8-15s between taunts
+    whisperTimerId = setTimeout(() => {
+      const el = $('whisper');
+      const pick = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
+      el.textContent = pick;
+      el.classList.add('show');
+      whisperHideId = setTimeout(() => {
+        el.classList.remove('show');
+        loop();
+      }, 2800);
+    }, delay);
+  };
+  loop();
+}
+function stopWhispers() {
+  if (whisperTimerId) { clearTimeout(whisperTimerId); whisperTimerId = null; }
+  if (whisperHideId) { clearTimeout(whisperHideId); whisperHideId = null; }
+  const el = $('whisper');
+  if (el) { el.classList.remove('show'); el.textContent = ''; }
+}
+
+function renderTimer() {
+  const m = Math.floor(state.timeLeft / 60);
+  const s = state.timeLeft % 60;
+  $('timer-value').textContent = `${m}:${String(s).padStart(2, '0')}`;
+  if (state.timeLeft <= URGENT_TIME) {
+    $('timer-row').classList.add('urgent');
+    $('timer-value').classList.add('urgent');
+  }
+}
+
+function onTimeout() {
+  playTimeoutSound();
+  toast('amber', `<b>Time's up.</b> Into training.`);
+  enterTraining();
+}
+
+/* ============================================================
+   Sound (Web Audio — no assets)
+   ============================================================ */
+let audioCtx = null;
+function audio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playSuccessSound() {
+  try {
+    const ac = audio(); const now = ac.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C major arpeggio
+    notes.forEach((f, i) => {
+      const d = i * 0.065;
+      const osc = ac.createOscillator(); osc.type = 'triangle'; osc.frequency.value = f;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0, now + d);
+      g.gain.linearRampToValueAtTime(0.18, now + d + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, now + d + 0.75);
+      osc.connect(g).connect(ac.destination);
+      osc.start(now + d); osc.stop(now + d + 0.8);
+    });
+  } catch (e) {}
+}
+
+function playTimeoutSound() {
+  try {
+    const ac = audio(); const now = ac.currentTime;
+    // Five harsh dissonant square-wave blasts — unmistakably annoying
+    const notes = [247, 220, 196, 175, 165];
+    notes.forEach((f, i) => {
+      const t0 = now + i * 0.30;
+      // two detuned oscillators for dissonance
+      [0, 7].forEach(detune => {
+        const osc = ac.createOscillator();
+        osc.type = 'square'; osc.frequency.value = f; osc.detune.value = detune;
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(0.18, t0 + 0.015);
+        g.gain.setValueAtTime(0.18, t0 + 0.22);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.29);
+        osc.connect(g).connect(ac.destination);
+        osc.start(t0); osc.stop(t0 + 0.30);
+      });
+    });
+  } catch (e) {}
+}
+
+/* ============================================================
+   Flow
+   ============================================================ */
+function toast(kind, html) {
+  const t = $('toast');
+  t.className = 'toast show ' + kind;
+  t.innerHTML = html;
+}
+function clearToast() { $('toast').className = 'toast'; $('toast').innerHTML = ''; }
+
 function onCheck() {
   if (!state.started) return;
   stopTimer();
-  if (isBalanced()) handleWin();
-  else handleMiss();
+  if (isBalanced()) onWin();
+  else onMiss();
 }
 
-function handleWin() {
+function onWin() {
   playSuccessSound();
+  if (state.mode === 'sandbox') {
+    toast('good', `<b>Balanced.</b>`);
+    pickNext();
+    renderProblem();
+    return;
+  }
   if (state.mode === 'progressing') {
-    state.progressingWins++;
-    const tier = TIERS[state.progressingTier];
-    if (state.progressingWins >= tier.toAdvance) {
-      // Cleared the tier
-      if (state.progressingTier < TIERS.length - 1) {
-        const nextTier = TIERS[state.progressingTier + 1];
-        notice('success', `<strong>${tier.label} cleared.</strong> You solved ${tier.toAdvance} in a row at ${tier.name.toLowerCase()} level. Moving up to <strong>${nextTier.label}: ${nextTier.name}</strong>.`);
-        state.progressingTier++;
-        state.progressingWins = 0;
-        refillQueue(state.progressingTier); // fresh shuffle for the new tier
-        pickNextProblem();
+    state.progWins++;
+    const tier = TIERS[state.progTier];
+    if (state.progWins >= tier.toAdvance) {
+      if (state.progTier < TIERS.length - 1) {
+        state.progTier++;
+        state.progWins = 0;
+        state.queues.prog[state.progTier] = shuffle(Array.from({length: TIERS[state.progTier].progressing.length}, (_, k) => k));
+        toast('good', `<b>${TIERS[state.progTier].label}</b>`);
+        pickNext();
       } else {
-        // Final tier beaten
-        notice('mastered', `<strong>You've mastered balancing reactions.</strong> All three tiers cleared in a row. Keep solving boss-level problems or hit <em>Start over</em> to run the full ladder again with a fresh set.`);
-        state.progressingWins = 0;
-        refillQueue(state.progressingTier);
-        pickNextProblem();
+        // Boss cleared — unlock sandbox forever
+        state.mastered = true;
+        try { localStorage.setItem('bal-rxn-mastered', '1'); } catch (e) {}
+        state.progWins = 0;
+        refillQueue();
+        toast('good', `<b>Mastered.</b> Sandbox unlocked.`);
+        pickNext();
       }
     } else {
-      notice('success', `<strong>Balanced.</strong> ${state.progressingWins} of ${tier.toAdvance} in a row. Keep the streak alive.`);
-      pickNextProblem();
+      toast('good', `<b>Balanced.</b>`);
+      pickNext();
     }
     renderProblem();
     return;
   }
-
-  // Training mode win
-  state.trainingStreak++;
-  if (state.trainingStreak >= TRAINING_TO_EXIT) {
-    const returnTier = TIERS[state.progressingTier];
-    notice('return', `<strong>You earned it.</strong> Back to progressing at <strong>${returnTier.label}: ${returnTier.name}</strong>. Fresh set of problems and a clean streak — solve ${returnTier.toAdvance} in a row to advance. Go.`);
+  // Training
+  state.trainStreak++;
+  if (state.trainStreak >= TRAINING_TO_EXIT) {
     state.mode = 'progressing';
-    state.trainingStreak = 0;
-    state.progressingWins = 0;
-    refillQueue(state.progressingTier); // fresh shuffle on return
-    pickNextProblem();
+    state.trainStreak = 0;
+    state.progWins = 0;
+    state.queues.prog[state.progTier] = shuffle(Array.from({length: TIERS[state.progTier].progressing.length}, (_, k) => k));
+    toast('good', `<b>Back in.</b>`);
+    pickNext();
   } else {
-    const remaining = TRAINING_TO_EXIT - state.trainingStreak;
-    notice('success', `<strong>Balanced.</strong> ${remaining} more in a row and you're out of training.`);
-    pickNextProblem();
+    toast('good', `<b>Balanced.</b>`);
+    pickNext();
   }
   renderProblem();
 }
 
-function handleMiss() {
-  if (state.mode === 'progressing') {
-    // Any miss in progressing → into training with a fresh easier set
-    const stuckTier = TIERS[state.progressingTier];
-    state.mode = 'training';
-    state.trainingTier = Math.max(0, state.progressingTier - 1);
-    state.trainingStreak = 0;
-    state.progressingWins = 0; // the streak died
-    refillQueue(state.trainingTier); // fresh shuffle so training feels like new problems
-    pickNextProblem();
-    const trainTier = TIERS[state.trainingTier];
-    if (state.trainingTier === state.progressingTier) {
-      // Already at tier 1 — they train at tier 1 still
-      notice('training', `<strong>Into training.</strong> This is foundational. Solve <strong>${TRAINING_TO_EXIT} in a row</strong> at ${trainTier.label} to sharpen up, then the streak toward advancing restarts.`);
-    } else {
-      notice('training', `<strong>Into training.</strong> We're dropping to <strong>${trainTier.label}: ${trainTier.name}</strong>. Solve <strong>${TRAINING_TO_EXIT} in a row</strong> to return to ${stuckTier.label}. Your tier streak resets when you come back.`);
-    }
-    renderProblem();
+function onMiss() {
+  if (state.mode === 'sandbox') {
+    toast('bad', `<b>Not balanced.</b>`);
+    // stay on same problem — no penalty, let them try again
+    onStart(); // re-lock/unlock so they can adjust. Actually keep it unlocked.
+    $('actions').classList.add('show');
+    $('eq').classList.remove('locked');
     return;
   }
+  if (state.mode === 'progressing') {
+    toast('bad', `<b>Not balanced.</b> Into training.`);
+    enterTraining();
+    return;
+  }
+  // Training miss — reset streak, stay in training
+  state.trainStreak = 0;
+  toast('bad', `<b>Streak reset.</b>`);
+  pickNext();
+  renderProblem();
+}
 
-  // Training mode miss — streak resets but you stay in training
-  state.trainingStreak = 0;
-  pickNextProblem();
-  notice('info', `<strong>Streak reset.</strong> Still in training. ${TRAINING_TO_EXIT} in a row to return to progressing — one miss and it starts over.`);
+function enterTraining() {
+  state.mode = 'training';
+  state.trainTier = Math.max(0, state.progTier - 1);
+  state.trainStreak = 0;
+  state.progWins = 0;
+  state.queues.train[state.trainTier] = shuffle(Array.from({length: TIERS[state.trainTier].training.length}, (_, k) => k));
+  pickNext();
   renderProblem();
 }
 
@@ -966,29 +1011,46 @@ function onResetCoeffs() {
 }
 
 function onStartOver() {
+  if (state.mode === 'sandbox') {
+    // From sandbox, the "Exit sandbox" button takes you back to progressing at Tier 3
+    state.mode = 'progressing';
+    state.progTier = TIERS.length - 1;
+    state.progWins = 0;
+    refillAll();
+    pickNext();
+    clearToast();
+    renderProblem();
+    return;
+  }
   state.mode = 'progressing';
-  state.progressingTier = 0;
-  state.progressingWins = 0;
-  state.trainingTier = 0;
-  state.trainingStreak = 0;
-  state.started = false;
-  stopTimer();
-  refillAllQueues(); // full reshuffle so a fresh run feels fresh
-  pickNextProblem();
-  notice('info', `<strong>Restarted with a new set.</strong> Back to the warm-up. Solve ${TIERS[0].toAdvance} in a row to advance. One miss drops you into training.`);
+  state.progTier = 0;
+  state.progWins = 0;
+  state.trainTier = 0;
+  state.trainStreak = 0;
+  refillAll();
+  pickNext();
+  clearToast();
   renderProblem();
 }
 
-/* Wire buttons */
+function onEnterSandbox() {
+  state.mode = 'sandbox';
+  state.queues.sand = shuffle(Array.from({length: SANDBOX.problems.length}, (_, k) => k));
+  pickNext();
+  clearToast();
+  renderProblem();
+}
+
+/* Wire */
 $('check-btn').addEventListener('click', onCheck);
 $('reset-coeffs-btn').addEventListener('click', onResetCoeffs);
 $('reset-btn').addEventListener('click', onStartOver);
 $('start-btn').addEventListener('click', onStart);
+$('sandbox-btn').addEventListener('click', onEnterSandbox);
 
 /* Boot */
-refillAllQueues();
-pickNextProblem();
-notice('info', `<strong>How mastery works.</strong> Solve ${TIERS[0].toAdvance} in a row at a tier to advance. One wrong answer drops you into <strong>training</strong> at the tier below. Solve ${TRAINING_TO_EXIT} in a row there to return. The color above tells you which mode you're in.`);
+refillAll();
+pickNext();
 renderProblem();
 </script>
 </body>
