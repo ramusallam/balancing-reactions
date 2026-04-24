@@ -323,6 +323,30 @@
     .toast.amber { background: rgba(251, 191, 36, 0.08); border-color: #fbbf24; color: #fde68a; }
     .toast b { color: var(--ink-hi); }
 
+    /* Big centered praise popup — visual fallback if speech is blocked,
+       but also a great amp-up even when speech works. */
+    .praise {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 180ms ease, transform 220ms ease;
+      transform: scale(0.8);
+      z-index: 100;
+    }
+    .praise.show { opacity: 1; transform: scale(1); }
+    .praise span {
+      font-size: clamp(48px, 10vw, 120px);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      color: var(--success);
+      text-shadow: 0 0 40px rgba(52, 211, 153, 0.5);
+      padding: 20px 40px;
+    }
+
     @media (max-width: 640px) {
       .shell { padding: 16px; }
       .formula { font-size: 1.2rem; }
@@ -334,6 +358,8 @@
   </style>
 </head>
 <body data-mode="progressing">
+
+<div class="praise" id="praise"><span id="praise-text"></span></div>
 
 <div class="shell">
 
@@ -764,6 +790,16 @@ function renderProblem() {
 function onStart() {
   if (state.started) return;
   state.started = true;
+  // Warm up speech synthesis on the first real user gesture — many
+  // browsers silently block TTS until the page sees a click.
+  primeSpeech();
+  try {
+    if (window.speechSynthesis) {
+      const warm = new SpeechSynthesisUtterance('');
+      warm.volume = 0;
+      window.speechSynthesis.speak(warm);
+    }
+  } catch (e) {}
   $('eq').classList.remove('locked');
   $('start-box').classList.add('hidden');
   $('actions').classList.add('show');
@@ -818,8 +854,12 @@ let whisperTimerId = null;
 let whisperHideId = null;
 function startWhispers() {
   stopWhispers();
+  let first = true;
   const loop = () => {
-    const delay = 8000 + Math.random() * 7000; // 8-15s between taunts
+    // Fire the first taunt within 3-5s so students see it quickly,
+    // then space them 8-14s apart.
+    const delay = first ? (3000 + Math.random() * 2000) : (8000 + Math.random() * 6000);
+    first = false;
     whisperTimerId = setTimeout(() => {
       const el = $('whisper');
       const pick = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
@@ -866,9 +906,17 @@ function audio() {
   return audioCtx;
 }
 
-/* Instead of a beep: a random '90s-Sacramento-vibe praise line spoken
-   out loud via the browser's SpeechSynthesis API. Falls back silent
-   if the browser doesn't support it. */
+/* Praise: random '90s-Sacramento vibe line shown BIG on screen and
+   (when possible) spoken out loud. The visible popup always fires —
+   so even when TTS is blocked by browser/OS/school policy, students
+   still get the hit of positive feedback.
+
+   Speech synthesis quirks handled:
+   - Voices load async on some browsers; we prime the list at boot
+     and again on first user click.
+   - Browsers block speech until a real user gesture — onStart() and
+     onCheck() both count, so the first correct answer should speak.
+   - If speak() silently fails, the visual is the fallback. */
 const PRAISES = [
   "Great job!",
   "Way to go!",
@@ -888,13 +936,44 @@ const PRAISES = [
   "Wicked!",
   "Fire!",
 ];
+let speechReady = false;
+let cachedVoice = null;
+function primeSpeech() {
+  if (!window.speechSynthesis) return;
+  try {
+    // Touching getVoices() triggers async loading in some browsers
+    const voices = window.speechSynthesis.getVoices();
+    // Prefer an English voice that sounds upbeat. Fall back to any EN.
+    cachedVoice = voices.find(v => /en-(US|GB|CA|AU)/i.test(v.lang) && /samantha|karen|daniel|google|fred|alex/i.test(v.name))
+               || voices.find(v => /^en/i.test(v.lang))
+               || voices[0] || null;
+    speechReady = voices.length > 0;
+  } catch (e) {}
+}
+if (window.speechSynthesis) {
+  primeSpeech();
+  // Voices sometimes load after DOM ready — listen for the event too.
+  window.speechSynthesis.addEventListener?.('voiceschanged', primeSpeech);
+}
+
+function showPraiseText(text) {
+  const node = document.getElementById('praise');
+  const span = document.getElementById('praise-text');
+  span.textContent = text;
+  node.classList.add('show');
+  setTimeout(() => node.classList.remove('show'), 1400);
+}
+
 function playSuccessSound() {
+  const text = PRAISES[Math.floor(Math.random() * PRAISES.length)];
+  // Visual always fires
+  showPraiseText(text);
+  // Try speech on top
   try {
     if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
-    // Don't stack if another utterance is still going
     window.speechSynthesis.cancel();
-    const text = PRAISES[Math.floor(Math.random() * PRAISES.length)];
     const utter = new SpeechSynthesisUtterance(text);
+    if (cachedVoice) utter.voice = cachedVoice;
     utter.rate = 1.05;
     utter.pitch = 1.15;
     utter.volume = 1.0;
