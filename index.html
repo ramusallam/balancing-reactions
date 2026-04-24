@@ -852,6 +852,20 @@ const TAUNTS = [
 ];
 let whisperTimerId = null;
 let whisperHideId = null;
+function speakWhisper(text) {
+  try {
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+    // Don't interrupt in-progress speech (e.g. a praise utterance).
+    // If TTS is idle, whisper softly.
+    if (window.speechSynthesis.speaking) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    if (cachedVoice) utter.voice = cachedVoice;
+    utter.rate = 0.82;       // slower — like a drawl
+    utter.pitch = 0.65;      // lower pitch — hush
+    utter.volume = 0.45;     // quieter than the praise
+    window.speechSynthesis.speak(utter);
+  } catch (e) {}
+}
 function startWhispers() {
   stopWhispers();
   let first = true;
@@ -865,6 +879,7 @@ function startWhispers() {
       const pick = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
       el.textContent = pick;
       el.classList.add('show');
+      speakWhisper(pick);
       whisperHideId = setTimeout(() => {
         el.classList.remove('show');
         loop();
