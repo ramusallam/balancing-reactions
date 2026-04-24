@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alchemist's Balance: The Quest for Mastery</title>
+    <style>
+        :root {
+            --bg: #0f0c29;
+            --container-bg: #1b1b2f;
+            --accent: #00d1ff;
+            --danger: #e94560;
+            --success: #4ee44e;
+            --text: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- UI Components --- */
+        .game-header { padding: 20px; text-align: center; }
+        .progress-container { width: 80%; background: #444; height: 10px; border-radius: 5px; margin: 10px 0; overflow: hidden; }
+        #progress-bar { width: 5%; height: 100%; background: var(--accent); transition: width 0.5s ease; }
+
+        .beaker-container {
+            background: var(--container-bg);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+            width: 90%;
+            max-width: 900px;
+            margin-top: 20px;
+        }
+
+        .equation-display {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            font-size: 2rem;
+            margin-bottom: 40px;
+        }
+
+        .molecule-ui {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 12px;
+            transition: transform 0.2s;
+        }
+
+        /* --- Tactile Controls --- */
+        .stepper { display: flex; flex-direction: column; align-items: center; margin-bottom: 5px; }
+        .btn-step {
+            background: var(--accent);
+            border: none;
+            color: black;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+        .btn-step:hover { background: #fff; }
+        .coeff-val { font-size: 1.5rem; font-weight: bold; margin: 5px 0; color: var(--accent); }
+
+        /* --- 3D Atom Visualization --- */
+        .visualizer {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding: 20px;
+            border-top: 1px solid #444;
+        }
+        .atom-bin { display: flex; flex-wrap: wrap; gap: 5px; max-width: 45%; justify-content: center; }
+        .atom {
+            width: 25px; height: 25px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: bold;
+            background: radial-gradient(circle at 30% 30%, var(--c), #000);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+
+        /* --- Feedback --- */
+        .status-table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+        .status-table th, .status-table td { padding: 10px; border: 1px solid #333; text-align: center; }
+        .match { color: var(--success); text-shadow: 0 0 5px var(--success); }
+        .mismatch { color: var(--danger); }
+
+        .boss-mode { border: 3px solid var(--danger); animation: shake 0.5s infinite; }
+        @keyframes shake { 0% { transform: translate(1px, 1px); } 20% { transform: translate(-1px, -2px); } }
+    </style>
+</head>
+<body>
+
+<div class="game-header">
+    <h1 id="tier-title">The Forge</h1>
+    <div class="progress-container"><div id="progress-bar"></div></div>
+    <p id="level-name">Loading Reaction...</p>
+</div>
+
+<div class="beaker-container" id="game-main">
+    <div class="equation-display" id="equation-target"></div>
+    
+    <div class="visualizer">
+        <div id="left-atoms" class="atom-bin"></div>
+        <div style="font-size: 2rem;">⚖️</div>
+        <div id="right-atoms" class="atom-bin"></div>
+    </div>
+
+    <table class="status-table">
+        <thead>
+            <tr><th>Element</th><th>Reactants</th><th>Products</th></tr>
+        </thead>
+        <tbody id="tally-body"></tbody>
+    </table>
+
+    <button id="submit-btn" style="margin-top: 20px; width: 100%; padding: 15px; background: var(--success); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: none;">STABILIZE REACTION</button>
+</div>
+
+<script>
+    /* --- Level Database --- */
+    const LEVELS = {
+        tier1: [
+            { eq: "H2 + O2 -> H2O", name: "Water Synthesis" },
+            { eq: "N2 + H2 -> NH3", name: "Haber Process" }
+        ],
+        tier2: [
+            { eq: "KClO3 -> KCl + O2", name: "Decomposition" },
+            { eq: "Al + O2 -> Al2O3", name: "Oxidation" }
+        ],
+        boss: [
+            { eq: "KMnO4 + HCl -> KCl + MnCl2 + H2O + Cl2", name: "The Final Rite" }
+        ]
+    };
+
+    /* --- Game State --- */
+    let currentTier = 'tier1';
+    let levelIdx = 0;
+    let userCoeffs = [];
+    let currentLevel = null;
+
+    /* --- Parser Logic --- */
+    function parse(formula) {
+        let f = formula.replace(/\(([^)]+)\)(\d+)/g, (m, g, mult) => 
+            g.replace(/([A-Z][a-z]*)(\d*)/g, (m, el, c) => el + (parseInt(c||1) * mult)));
+        let res = {};
+        f.replace(/([A-Z][a-z]*)(\d*)/g, (m, el, c) => { res[el] = (res[el] || 0) + parseInt(c || 1); });
+        return res;
+    }
+
+    /* --- Core Engine --- */
+    function initLevel() {
+        currentLevel = LEVELS[currentTier][levelIdx];
+        document.getElementById('level-name').innerText = currentLevel.name;
+        
+        const sides = currentLevel.eq.split('->');
+        const reactants = sides[0].split('+').map(s => s.trim());
+        const products = sides[1].split('+').map(s => s.trim());
+        
+        userCoeffs = new Array(reactants.length + products.length).fill(1);
+        renderUI(reactants, products);
+        updateLogic();
+    }
+
+    function renderUI(reactants, products) {
+        const target = document.getElementById('equation-target');
+        target.innerHTML = '';
+        
+        const createMol = (formula, idx) => {
+            const div = document.createElement('div');
+            div.className = 'molecule-ui';
+            div.innerHTML = `
+                <div class="stepper">
+                    <button class="btn-step" onclick="change(${idx}, 1)">▲</button>
+                    <span class="coeff-val" id="c-${idx}">1</span>
+                    <button class="btn-step" onclick="change(${idx}, -1)">▼</button>
+                </div>
+                <span>${formula.replace(/(\d+)/g, '<sub>$1</sub>')}</span>
+            `;
+            return div;
+        };
+
+        reactants.forEach((m, i) => {
+            target.appendChild(createMol(m, i));
+            if(i < reactants.length - 1) target.innerHTML += ' + ';
+        });
+        
+        target.innerHTML += ' → ';
+        
+        products.forEach((m, i) => {
+            const idx = i + reactants.length;
+            target.appendChild(createMol(m, idx));
+            if(i < products.length - 1) target.innerHTML += ' + ';
+        });
+    }
+
+    window.change = (idx, delta) => {
+        userCoeffs[idx] = Math.max(1, userCoeffs[idx] + delta);
+        document.getElementById(`c-${idx}`).innerText = userCoeffs[idx];
+        updateLogic();
+    };
+
+    function updateLogic() {
+        const sides = currentLevel.eq.split('->');
+        const reactStrs = sides[0].split('+').map(s => s.trim());
+        const prodStrs = sides[1].split('+').map(s => s.trim());
+
+        let leftTotal = {}, rightTotal = {};
+        
+        // Atom Tally
+        reactStrs.forEach((f, i) => {
+            let p = parse(f);
+            for(let el in p) leftTotal[el] = (leftTotal[el] || 0) + (p[el] * userCoeffs[i]);
+        });
+
+        prodStrs.forEach((f, i) => {
+            let p = parse(f);
+            let idx = i + reactStrs.length;
+            for(let el in p) rightTotal[el] = (rightTotal[el] || 0) + (p[el] * userCoeffs[idx]);
+        });
+
+        renderTally(leftTotal, rightTotal);
+        renderAtoms(leftTotal, rightTotal);
+    }
+
+    function renderTally(left, right) {
+        const body = document.getElementById('tally-body');
+        body.innerHTML = '';
+        let allMatch = true;
+        const elements = [...new Set([...Object.keys(left), ...Object.keys(right)])];
+
+        elements.forEach(el => {
+            const lV = left[el] || 0;
+            const rV = right[el] || 0;
+            const match = lV === rV;
+            if(!match) allMatch = false;
+            body.innerHTML += `<tr><td>${el}</td><td class="${match?'match':'mismatch'}">${lV}</td><td class="${match?'match':'mismatch'}">${rV}</td></tr>`;
+        });
+
+        if(allMatch) handleWin();
+    }
+
+    const COLORS = { H: '#fff', O: '#ff4d4d', N: '#3366ff', C: '#444', K: '#d48dff', Cl: '#91ff91', Mn: '#9c6a6a' };
+    
+    function renderAtoms(left, right) {
+        const lBin = document.getElementById('left-atoms');
+        const rBin = document.getElementById('right-atoms');
+        lBin.innerHTML = ''; rBin.innerHTML = '';
+
+        for(let el in left) {
+            for(let i=0; i<Math.min(left[el], 20); i++) {
+                lBin.innerHTML += `<div class="atom" style="--c:${COLORS[el]||'#888'}">${el}</div>`;
+            }
+        }
+        for(let el in right) {
+            for(let i=0; i<Math.min(right[el], 20); i++) {
+                rBin.innerHTML += `<div class="atom" style="--c:${COLORS[el]||'#888'}">${el}</div>`;
+            }
+        }
+    }
+
+    function handleWin() {
+        document.getElementById('submit-btn').style.display = 'block';
+        document.getElementById('submit-btn').onclick = () => {
+            alert("Level Complete! Ranking Up...");
+            // Scaffolding Logic: Increment Tier
+            if(currentTier === 'tier1') currentTier = 'tier2';
+            else if(currentTier === 'tier2') currentTier = 'boss';
+            levelIdx = 0;
+            initLevel();
+            document.getElementById('submit-btn').style.display = 'none';
+        }
+    }
+
+    initLevel();
+</script>
+</body>
+</html>
