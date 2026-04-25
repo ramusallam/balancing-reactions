@@ -4,403 +4,90 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Balancing Reactions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Roboto+Mono:wght@400;700&family=Roboto+Serif:wght@400;700&display=swap" rel="stylesheet">
   <style>
+    /* ============================================================
+       Balancing Reactions — Spark Learning aesthetic
+       Class apps inherit from Spark so students moving between
+       Spark and BR feel zero seam.
+       ============================================================ */
     :root {
-      --bg-0: #0f172a;          /* slate-900, cleaner than pure black */
-      --bg-1: #1e293b;          /* slate-800 — cards */
-      --bg-2: #273548;          /* slate-700 — inset */
-      --ink-hi: #f8fafc;        /* crisp white */
-      --ink-mid: #cbd5e1;       /* slate-300 */
-      --ink-low: #94a3b8;       /* slate-400 */
-      --border: rgba(148, 163, 184, 0.28);
-      --border-strong: rgba(148, 163, 184, 0.55);
+      /* Spark backgrounds */
+      --bgMain: #F7F3EE;
+      --bgPanel: #FFFFFF;
+      --bgCard:  #FFFFFF;
+      --borderColor: #E5E7EB;
+      --bgSubtle: #FAFAF7;          /* slightly tinted surface */
 
-      /* mode accents */
-      --accent: #818cf8;        /* indigo-400 — progressing */
-      --accent-hover: #a5b4fc;
-      --accent-soft: rgba(129, 140, 248, 0.14);
-      --accent-ring: rgba(129, 140, 248, 0.4);
+      /* Spark ink */
+      --textPrimary:   #111111;
+      --textSecondary: #555555;
+      --textMuted:     #9CA3AF;
 
-      --success: #34d399;       /* emerald-400 */
-      --error:   #f87171;       /* red-400 */
+      /* Spark brand + status */
+      --accentBlue:        #3b82f6;
+      --accentBlueHover:   #2563eb;
+      --accentPurple:      #a855f7;
+      --accentPurpleHover: #9333ea;
+      --accentGreen:       #22c55e;
+      --accentAmber:       #f59e0b;
+      --accentRed:         #ef4444;
+
+      /* Mode accent — swapped per data-mode */
+      --accent:        var(--accentBlue);
+      --accentHover:   var(--accentBlueHover);
+      --accentSoft:    rgba(59, 130, 246, 0.10);
+      --accentRing:    rgba(59, 130, 246, 0.35);
+
+      /* Domain-semantic preserved for chemistry visuals */
+      --reactant: #ef4444;
+      --product:  #3b82f6;
+
+      /* Type */
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-serif: 'Roboto Serif', Georgia, Cambria, serif;
+      --font-mono: 'Roboto Mono', ui-monospace, monospace;
     }
+
     body[data-mode="training"] {
-      --accent: #fbbf24;        /* amber-400 */
-      --accent-hover: #fcd34d;
-      --accent-soft: rgba(251, 191, 36, 0.14);
-      --accent-ring: rgba(251, 191, 36, 0.4);
+      --accent:      var(--accentAmber);
+      --accentHover: #d97706;
+      --accentSoft:  rgba(245, 158, 11, 0.12);
+      --accentRing:  rgba(245, 158, 11, 0.35);
     }
     body[data-mode="sandbox"] {
-      --accent: #c4b5fd;        /* violet-300 */
-      --accent-hover: #ddd6fe;
-      --accent-soft: rgba(196, 181, 253, 0.14);
-      --accent-ring: rgba(196, 181, 253, 0.4);
+      --accent:      var(--accentPurple);
+      --accentHover: var(--accentPurpleHover);
+      --accentSoft:  rgba(168, 85, 247, 0.12);
+      --accentRing:  rgba(168, 85, 247, 0.35);
     }
     body[data-mode="custom"] {
-      --accent: #2dd4bf;        /* teal-400 — practice mode */
-      --accent-hover: #5eead4;
-      --accent-soft: rgba(45, 212, 191, 0.14);
-      --accent-ring: rgba(45, 212, 191, 0.4);
-    }
-
-    /* Practice-mode input form: big, inviting, minimal. */
-    .custom-form {
-      background: var(--bg-1);
-      border: 2px solid var(--accent);
-      border-radius: 14px;
-      padding: 32px 28px;
-      text-align: center;
-    }
-    .custom-form h2 {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      letter-spacing: -0.01em;
-    }
-    .custom-form p {
-      color: var(--ink-mid);
-      font-size: 14px;
-      margin-bottom: 22px;
-    }
-    .custom-input {
-      width: 100%;
-      font-family: ui-serif, Georgia, serif;
-      font-size: clamp(20px, 3.2vw, 28px);
-      font-weight: 600;
-      padding: 16px 20px;
-      background: var(--bg-2);
-      border: 2px solid var(--border-strong);
-      border-radius: 10px;
-      color: var(--ink-hi);
-      text-align: center;
-      outline: none;
-      transition: border-color 120ms ease, background 120ms ease;
-    }
-    .custom-input:focus {
-      border-color: var(--accent);
-      background: var(--bg-1);
-    }
-    .custom-input::placeholder { color: var(--ink-low); font-style: italic; font-weight: 400; }
-    .custom-examples {
-      margin-top: 14px;
-      color: var(--ink-low);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-    .custom-examples code {
-      font-family: ui-monospace, monospace;
-      background: var(--bg-2);
-      padding: 2px 8px;
-      border-radius: 5px;
-      color: var(--ink-mid);
-    }
-    .custom-error {
-      margin-top: 14px;
-      color: var(--error);
-      font-size: 14px;
-      min-height: 20px;
-    }
-    .custom-actions {
-      margin-top: 20px;
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap;
+      --accent:      var(--accentGreen);
+      --accentHover: #16a34a;
+      --accentSoft:  rgba(34, 197, 94, 0.12);
+      --accentRing:  rgba(34, 197, 94, 0.35);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { min-height: 100vh; }
     body {
-      font-family: system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
-      background: var(--bg-0);
-      color: var(--ink-hi);
-      line-height: 1.45;
+      font-family: var(--font-sans);
+      background: var(--bgMain);
+      color: var(--textPrimary);
       font-size: 16px;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
 
-    /* Layout */
-    .shell { max-width: 960px; margin: 0 auto; padding: 24px 28px; }
-
-    /* Top row: mode badge + tier ladder + action buttons */
-    .topbar {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
-    }
-    .mode-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--accent);
-      color: #0f172a;
-      padding: 7px 16px;
-      border-radius: 999px;
-      font-weight: 800;
-      font-size: 12px;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-    }
-    .actions-right { margin-left: auto; display: flex; gap: 8px; }
-
-    .btn {
-      border-radius: 8px;
-      padding: 9px 16px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      border: 1px solid var(--border-strong);
-      background: var(--bg-1);
-      color: var(--ink-hi);
-      font-family: inherit;
-      transition: background 120ms ease, border-color 120ms ease;
-    }
-    .btn:hover { background: var(--bg-2); border-color: var(--ink-low); }
-    .btn.primary {
-      background: var(--accent);
-      color: #0f172a;
-      border-color: var(--accent);
-    }
-    .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-
-    /* Tier ladder — visual only */
-    .ladder { display: flex; gap: 6px; margin-bottom: 20px; }
-    .tier-pill {
-      flex: 1;
-      padding: 10px 14px;
-      background: var(--bg-1);
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      text-align: center;
-      min-width: 0;
-      transition: border-color 200ms ease, background 200ms ease;
-    }
-    .tier-pill .tier-idx {
-      display: block;
-      font-size: 11px;
-      letter-spacing: 1.5px;
-      color: var(--ink-low);
-      font-weight: 700;
-    }
-    .tier-pill .tier-name {
-      font-size: 15px;
-      font-weight: 700;
-      margin-top: 2px;
-      color: var(--ink-mid);
-    }
-    .tier-pill.done {
-      background: rgba(52, 211, 153, 0.08);
-      border-color: rgba(52, 211, 153, 0.5);
-    }
-    .tier-pill.done .tier-idx, .tier-pill.done .tier-name { color: var(--success); }
-    .tier-pill.now {
-      background: var(--accent-soft);
-      border-color: var(--accent);
-    }
-    .tier-pill.now .tier-idx, .tier-pill.now .tier-name { color: var(--accent); }
-    .tier-pill.drill {
-      border-style: dashed;
-      border-color: #fbbf24;
-      background: rgba(251, 191, 36, 0.06);
-    }
-    .tier-pill.drill .tier-idx, .tier-pill.drill .tier-name { color: #fbbf24; }
-
-    /* Streak dots */
-    .streak {
-      display: flex;
-      justify-content: flex-end;
-      gap: 6px;
-      margin-bottom: 18px;
-    }
-    .streak-dot {
-      width: 12px; height: 12px; border-radius: 50%;
-      background: var(--bg-2);
-      border: 1.5px solid var(--border-strong);
-    }
-    .streak-dot.filled { background: var(--accent); border-color: var(--accent); }
-    .streak-dot.active { box-shadow: 0 0 0 3px var(--accent-ring); border-color: var(--accent); }
-
-    /* Card */
-    .card {
-      background: var(--bg-1);
-      border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 26px;
-      transition: border-color 200ms ease;
-    }
-    body[data-mode="training"] .card { border-color: var(--accent); }
-
-    /* Timer row — giant, inside the card */
-    .timer-row {
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 14px 20px;
-      background: var(--bg-2);
-      border: 2px solid var(--accent);
-      border-radius: 12px;
-      margin-bottom: 18px;
-    }
-    .timer-row.show { display: flex; }
-    .timer-row.urgent { border-color: var(--error); background: rgba(248, 113, 113, 0.10); }
-    .whisper {
-      flex: 1;
-      text-align: center;
-      font-style: italic;
-      font-size: 14px;
-      color: var(--ink-low);
-      opacity: 0;
-      transition: opacity 550ms ease;
-      pointer-events: none;
-      font-family: Georgia, ui-serif, serif;
-      letter-spacing: 0.3px;
-    }
-    .whisper.show { opacity: 0.9; }
-    .timer-row.urgent .whisper { color: var(--error); }
-    .timer-label {
-      font-size: 12px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--ink-low);
-      font-weight: 700;
-    }
-    .timer-value {
-      font-size: 40px;
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
-      color: var(--accent);
-      letter-spacing: 2px;
-      line-height: 1;
-    }
-    .timer-value.urgent { color: var(--error); animation: blink 0.6s infinite; }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-    /* Start overlay — replaces action row until clicked */
-    .start-box {
-      display: block;
-      text-align: center;
-      padding: 36px 20px;
-      background: var(--accent-soft);
-      border: 2px dashed var(--accent);
-      border-radius: 12px;
-      margin-bottom: 18px;
-    }
-    .start-box.hidden { display: none; }
-    .btn-start {
-      background: var(--accent);
-      color: #0f172a;
-      border: none;
-      border-radius: 10px;
-      padding: 18px 56px;
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      cursor: pointer;
-      box-shadow: 0 4px 14px var(--accent-ring);
-      transition: transform 120ms ease, background 120ms ease;
-      font-family: inherit;
-    }
-    .btn-start:hover { background: var(--accent-hover); transform: translateY(-1px); }
-    .start-sub {
-      color: var(--ink-mid);
-      font-size: 13px;
-      margin-top: 12px;
-      letter-spacing: 0.3px;
-    }
-
-    /* Equation */
-    .eq {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      align-items: center;
-      gap: 18px;
-      padding: 28px 12px;
-      background: var(--bg-2);
-      border-radius: 12px;
-      margin-bottom: 20px;
-    }
-    .eq.locked { opacity: 0.35; pointer-events: none; filter: grayscale(0.4); }
-    .mol { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-    .step {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .step-btn {
-      width: 46px; height: 32px;
-      background: var(--bg-1);
-      border: 1.5px solid var(--border-strong);
-      border-radius: 6px;
-      color: var(--ink-hi);
-      font-weight: 800;
-      font-size: 16px;
-      cursor: pointer;
-      transition: background 120ms ease, border-color 120ms ease;
-    }
-    .step-btn:hover { background: var(--accent); color: #0f172a; border-color: var(--accent); }
-    .coeff {
-      font-size: 30px;
-      font-weight: 800;
-      color: var(--accent);
-      font-variant-numeric: tabular-nums;
-      min-width: 38px;
-      text-align: center;
-      line-height: 1.1;
-      margin: 2px 0;
-    }
-    .formula {
-      font-family: ui-serif, "Times New Roman", Georgia, serif;
-      font-size: 1.55rem;
-      font-weight: 600;
-      color: var(--ink-hi);
-    }
-    .formula sub { font-size: 0.68em; vertical-align: baseline; }
-    .op {
-      color: var(--ink-low);
-      font-size: 1.6rem;
-      font-weight: 300;
-    }
-
-    /* Action row (Check/Reset) */
-    .actions {
-      display: none;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .actions.show { display: flex; }
-    .actions .btn.primary { padding: 14px 36px; font-size: 17px; }
-
-    /* Toast / status */
-    .toast {
-      margin-bottom: 14px;
-      padding: 12px 16px;
-      border-radius: 10px;
-      font-size: 14px;
-      line-height: 1.5;
-      background: var(--bg-1);
-      border: 1.5px solid var(--border);
-      color: var(--ink-mid);
-      display: none;
-    }
-    .toast.show { display: block; }
-    .toast.good { background: rgba(52, 211, 153, 0.08); border-color: var(--success); color: #a7f3d0; }
-    .toast.bad  { background: rgba(248, 113, 113, 0.08); border-color: var(--error); color: #fecaca; }
-    .toast.amber { background: rgba(251, 191, 36, 0.08); border-color: #fbbf24; color: #fde68a; }
-    .toast b { color: var(--ink-hi); }
-
-    /* Correct-answer reveal overlay — fires on a wrong submission in
-       progressing mode, shows the balanced equation for a few seconds,
-       then drops the student into training. */
+    /* ============================================================
+       Reveal overlay — correct-answer when student misses
+       ============================================================ */
     .reveal {
       position: fixed; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(17, 17, 17, 0.55);
+      backdrop-filter: blur(6px);
       opacity: 0; pointer-events: none;
       transition: opacity 220ms ease;
       z-index: 99;
@@ -409,66 +96,463 @@
     .reveal.show { opacity: 1; }
     .reveal-inner {
       text-align: center;
-      padding: 28px 36px;
-      background: var(--bg-1);
-      border: 2px solid #fbbf24;
-      border-radius: 14px;
+      padding: 32px 40px;
+      background: var(--bgCard);
+      border: 1px solid var(--borderColor);
+      border-radius: 1rem;
+      box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
       max-width: 720px;
+      animation: spark-scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .reveal-label {
-      font-size: 12px;
-      letter-spacing: 2px;
-      color: #fbbf24;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      color: var(--accentAmber);
       font-weight: 800;
+      text-transform: uppercase;
       margin-bottom: 14px;
     }
     .reveal-eq {
-      font-family: ui-serif, Georgia, serif;
+      font-family: var(--font-serif);
       font-size: clamp(24px, 4vw, 38px);
-      font-weight: 600;
-      color: var(--ink-hi);
+      font-weight: 700;
+      color: var(--textPrimary);
       margin-bottom: 14px;
-      line-height: 1.2;
+      line-height: 1.25;
     }
-    .reveal-eq .co { color: #fbbf24; font-weight: 900; margin-right: 2px; }
+    .reveal-eq .co { color: var(--accentAmber); font-weight: 900; margin-right: 2px; }
     .reveal-eq sub { font-size: 0.68em; vertical-align: baseline; }
     .reveal-sub {
-      font-size: 14px;
-      color: var(--ink-mid);
+      font-size: 0.875rem;
+      color: var(--textSecondary);
       font-style: italic;
     }
 
-    /* Big centered praise popup — visual fallback if speech is blocked,
-       but also a great amp-up even when speech works. */
+    /* ============================================================
+       Praise popup — fires on correct answer
+       ============================================================ */
     .praise {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
       pointer-events: none;
-      opacity: 0;
-      transition: opacity 180ms ease, transform 220ms ease;
-      transform: scale(0.8);
+      opacity: 0; transform: scale(0.85);
+      transition: opacity 200ms ease, transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
       z-index: 100;
     }
     .praise.show { opacity: 1; transform: scale(1); }
     .praise span {
-      font-size: clamp(48px, 10vw, 120px);
+      font-family: var(--font-sans);
+      font-size: clamp(48px, 9vw, 110px);
       font-weight: 900;
       letter-spacing: -0.03em;
-      color: var(--success);
-      text-shadow: 0 0 40px rgba(52, 211, 153, 0.5);
+      color: var(--accentGreen);
+      text-shadow: 0 4px 30px rgba(34, 197, 94, 0.4);
       padding: 20px 40px;
     }
 
+    /* ============================================================
+       Layout shell
+       ============================================================ */
+    .shell {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 24px 40px;
+    }
+
+    /* Topbar — Spark-style sticky header in spirit, simplified */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+    .mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-weight: 800;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: background 0.2s ease;
+    }
+    .actions-right { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--borderColor);
+      background: var(--bgPanel);
+      color: var(--textSecondary);
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+    }
+    .btn:hover { background: var(--bgMain); color: var(--textPrimary); border-color: var(--textMuted); }
+    .btn:active { transform: scale(0.97); }
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 900;
+      padding: 0.875rem 1.5rem;
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+    }
+    .btn.primary:hover { background: var(--accentHover); border-color: var(--accentHover); color: #fff; }
+    .btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ============================================================
+       Tier ladder + streak dots
+       ============================================================ */
+    .ladder { display: flex; gap: 8px; margin-bottom: 18px; }
+    .tier-pill {
+      flex: 1;
+      padding: 12px 16px;
+      background: var(--bgPanel);
+      border: 1px solid var(--borderColor);
+      border-radius: 0.75rem;
+      text-align: center;
+      transition: all 220ms ease;
+      min-width: 0;
+    }
+    .tier-pill .tier-idx {
+      display: block;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: var(--textMuted);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .tier-pill .tier-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-top: 2px;
+      color: var(--textSecondary);
+    }
+    .tier-pill.done {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.4);
+    }
+    .tier-pill.done .tier-idx, .tier-pill.done .tier-name { color: var(--accentGreen); }
+    .tier-pill.now {
+      background: var(--accentSoft);
+      border-color: var(--accent);
+      box-shadow: 0 4px 10px var(--accentRing);
+    }
+    .tier-pill.now .tier-idx, .tier-pill.now .tier-name { color: var(--accent); }
+    .tier-pill.drill {
+      border: 1px dashed var(--accentAmber);
+      background: rgba(245, 158, 11, 0.06);
+    }
+    .tier-pill.drill .tier-idx, .tier-pill.drill .tier-name { color: var(--accentAmber); }
+
+    .streak {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+    .streak-dot {
+      width: 12px; height: 12px; border-radius: 9999px;
+      background: var(--bgPanel);
+      border: 1.5px solid var(--borderColor);
+    }
+    .streak-dot.filled { background: var(--accent); border-color: var(--accent); }
+    .streak-dot.active { box-shadow: 0 0 0 3px var(--accentRing); border-color: var(--accent); }
+
+    /* ============================================================
+       Toast
+       ============================================================ */
+    .toast {
+      margin-bottom: 14px;
+      padding: 14px 18px;
+      border-radius: 0.75rem;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      background: var(--bgPanel);
+      border: 1px solid var(--borderColor);
+      color: var(--textSecondary);
+      display: none;
+      animation: spark-fade-in 0.3s ease-out;
+    }
+    .toast.show { display: block; }
+    .toast.good { background: rgba(34, 197, 94, 0.08); border-color: rgba(34, 197, 94, 0.35); color: #166534; }
+    .toast.bad  { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.35); color: #991b1b; }
+    .toast.amber { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.35); color: #92400e; }
+    .toast b { color: var(--textPrimary); }
+
+    /* ============================================================
+       Card — the workhorse Spark surface
+       ============================================================ */
+    .card {
+      background: var(--bgCard);
+      border: 1px solid var(--borderColor);
+      border-radius: 1rem;
+      padding: 28px;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04);
+      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+    body[data-mode="training"] .card { border-color: rgba(245, 158, 11, 0.35); }
+    body[data-mode="sandbox"]  .card { border-color: rgba(168, 85, 247, 0.30); }
+
+    /* ============================================================
+       Big timer row
+       ============================================================ */
+    .timer-row {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 22px;
+      background: var(--accentSoft);
+      border: 1.5px solid var(--accent);
+      border-radius: 0.75rem;
+      margin-bottom: 20px;
+      transition: all 220ms ease;
+    }
+    .timer-row.show { display: flex; }
+    .timer-row.urgent {
+      border-color: var(--accentRed);
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .timer-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--textSecondary);
+      font-weight: 800;
+    }
+    .timer-value {
+      font-family: var(--font-mono);
+      font-size: 2.5rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      line-height: 1;
+    }
+    .timer-value.urgent { color: var(--accentRed); animation: spark-blink 0.6s infinite; }
+    @keyframes spark-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+    .whisper {
+      flex: 1;
+      text-align: center;
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: 0.9rem;
+      color: var(--textMuted);
+      opacity: 0;
+      transition: opacity 550ms ease;
+      pointer-events: none;
+      letter-spacing: 0.01em;
+    }
+    .whisper.show { opacity: 0.95; }
+    .timer-row.urgent .whisper { color: var(--accentRed); }
+
+    /* ============================================================
+       Start box — the gating interaction
+       ============================================================ */
+    .start-box {
+      display: block;
+      text-align: center;
+      padding: 36px 20px;
+      background: var(--accentSoft);
+      border: 2px dashed var(--accent);
+      border-radius: 1rem;
+      margin-bottom: 20px;
+      transition: all 220ms ease;
+    }
+    .start-box.hidden { display: none; }
+    .btn-start {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 0.75rem;
+      padding: 18px 56px;
+      font-size: 1.25rem;
+      font-weight: 900;
+      font-family: var(--font-sans);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 14px 25px var(--accentRing), 0 4px 8px rgb(0 0 0 / 0.05);
+      transition: background 0.15s ease, transform 0.12s ease;
+    }
+    .btn-start:hover { background: var(--accentHover); transform: translateY(-1px); }
+    .btn-start:active { transform: translateY(0) scale(0.97); }
+    .start-sub {
+      color: var(--textSecondary);
+      font-size: 0.875rem;
+      margin-top: 14px;
+      letter-spacing: 0.01em;
+    }
+
+    /* ============================================================
+       Equation display — chemistry
+       ============================================================ */
+    .eq {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 18px;
+      padding: 32px 14px;
+      background: var(--bgSubtle);
+      border: 1px solid var(--borderColor);
+      border-radius: 0.75rem;
+      margin-bottom: 22px;
+    }
+    .eq.locked { opacity: 0.4; pointer-events: none; filter: saturate(0.5); }
+    .mol { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .step-btn {
+      width: 46px; height: 32px;
+      background: var(--bgPanel);
+      border: 1px solid var(--borderColor);
+      border-radius: 0.5rem;
+      color: var(--textPrimary);
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    }
+    .step-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .coeff {
+      font-family: var(--font-mono);
+      font-size: 1.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      min-width: 38px;
+      text-align: center;
+      line-height: 1.1;
+      margin: 2px 0;
+      transition: color 0.2s ease;
+    }
+    .formula {
+      font-family: var(--font-serif);
+      font-size: 1.65rem;
+      font-weight: 600;
+      color: var(--textPrimary);
+    }
+    .formula sub { font-size: 0.65em; vertical-align: baseline; }
+    .op {
+      color: var(--textMuted);
+      font-size: 1.5rem;
+      font-weight: 400;
+    }
+
+    /* ============================================================
+       Action row
+       ============================================================ */
+    .actions {
+      display: none;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .actions.show { display: flex; }
+
+    /* ============================================================
+       Practice mode — custom-form
+       ============================================================ */
+    .custom-form {
+      background: var(--bgCard);
+      border: 1.5px solid var(--accent);
+      border-radius: 1rem;
+      padding: 36px 30px;
+      text-align: center;
+      box-shadow: 0 4px 14px var(--accentRing);
+    }
+    .custom-form h2 {
+      font-family: var(--font-sans);
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin-bottom: 8px;
+      color: var(--textPrimary);
+    }
+    .custom-form p {
+      color: var(--textSecondary);
+      font-size: 0.95rem;
+      margin-bottom: 22px;
+    }
+    .custom-input {
+      width: 100%;
+      font-family: var(--font-serif);
+      font-size: clamp(20px, 3.2vw, 28px);
+      font-weight: 600;
+      padding: 18px 20px;
+      background: var(--bgMain);
+      border: 1px solid var(--borderColor);
+      border-radius: 0.75rem;
+      color: var(--textPrimary);
+      text-align: center;
+      outline: none;
+      transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    .custom-input:focus {
+      border-color: var(--accent);
+      background: var(--bgPanel);
+      box-shadow: 0 0 0 3px var(--accentRing);
+    }
+    .custom-input::placeholder { color: var(--textMuted); font-style: italic; font-weight: 400; }
+    .custom-examples {
+      margin-top: 14px;
+      color: var(--textMuted);
+      font-size: 0.8rem;
+      line-height: 1.7;
+    }
+    .custom-examples code {
+      font-family: var(--font-mono);
+      background: var(--bgMain);
+      padding: 2px 8px;
+      border-radius: 0.25rem;
+      color: var(--textSecondary);
+      font-size: 0.85em;
+    }
+    .custom-error {
+      margin-top: 14px;
+      color: var(--accentRed);
+      font-size: 0.875rem;
+      min-height: 22px;
+    }
+    .custom-actions {
+      margin-top: 22px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ============================================================
+       Animations
+       ============================================================ */
+    @keyframes spark-fade-in   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spark-fade-up   { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spark-scale-in  { from { opacity: 0; transform: scale(0.9); }      to { opacity: 1; transform: scale(1); } }
+
     @media (max-width: 640px) {
-      .shell { padding: 16px; }
-      .formula { font-size: 1.2rem; }
-      .eq { font-size: 1rem; gap: 10px; padding: 18px 6px; }
-      .timer-value { font-size: 32px; }
-      .btn-start { padding: 14px 36px; font-size: 18px; }
-      .coeff { font-size: 24px; }
+      .shell { padding: 18px 16px 32px; }
+      .formula { font-size: 1.25rem; }
+      .eq { font-size: 1rem; gap: 10px; padding: 20px 8px; }
+      .timer-value { font-size: 2rem; }
+      .btn-start { padding: 15px 36px; font-size: 1.05rem; }
+      .coeff { font-size: 1.4rem; }
     }
   </style>
 </head>
