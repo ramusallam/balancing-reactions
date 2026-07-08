@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Balancing Reactions</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Roboto+Mono:wght@400;700&family=Roboto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Roboto+Mono:wght@400;500;700&family=Roboto+Serif:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     /* ============================================================
        Balancing Reactions — Spark Learning aesthetic
@@ -16,32 +16,43 @@
       --bgMain: #F7F3EE;
       --bgPanel: #FFFFFF;
       --bgCard:  #FFFFFF;
-      --borderColor: #E5E7EB;
-      --bgSubtle: #FAFAF7;          /* slightly tinted surface */
+      --borderColor: #E8E0D2;       /* warm sand */
+      --borderSoft:  #F0EBE3;        /* subtle warm hairline */
+      --bgSubtle: #FBF8F3;          /* slightly tinted warm surface */
 
-      /* Spark ink */
-      --textPrimary:   #111111;
-      --textSecondary: #555555;
-      --textMuted:     #9CA3AF;
+      /* Spark ink — warm stone */
+      --textPrimary:   #1C1917;
+      --textSecondary: #57534E;
+      --textMuted:     #A0937B;
 
       /* Spark brand + status */
-      --accentBlue:        #3b82f6;
-      --accentBlueHover:   #2563eb;
+      --accentBlue:        #6366F1;   /* canonical indigo */
+      --accentBlueHover:   #4F46E5;
       --accentPurple:      #a855f7;
       --accentPurpleHover: #9333ea;
-      --accentGreen:       #22c55e;
+      --accentGreen:       #10b981;
       --accentAmber:       #f59e0b;
       --accentRed:         #ef4444;
+
+      /* Richer indigo ramp */
+      --indigo-2:    #818CF8;
+      --indigo-soft: rgba(99, 102, 241, 0.09);
+      --indigo-line: rgba(99, 102, 241, 0.30);
+
+      /* Soft shadow ramp */
+      --sh-sm: 0 1px 2px rgba(17,17,17,0.05), 0 2px 6px rgba(17,17,17,0.08);
+      --sh-md: 0 4px 12px rgba(17,17,17,0.06), 0 2px 4px rgba(17,17,17,0.04);
+      --sh-lg: 0 16px 40px rgba(17,17,17,0.10), 0 4px 12px rgba(17,17,17,0.06);
 
       /* Mode accent — swapped per data-mode */
       --accent:        var(--accentBlue);
       --accentHover:   var(--accentBlueHover);
-      --accentSoft:    rgba(59, 130, 246, 0.10);
-      --accentRing:    rgba(59, 130, 246, 0.35);
+      --accentSoft:    rgba(99, 102, 241, 0.10);
+      --accentRing:    rgba(99, 102, 241, 0.35);
 
       /* Domain-semantic preserved for chemistry visuals */
       --reactant: #ef4444;
-      --product:  #3b82f6;
+      --product:  #6366F1;
 
       /* Type */
       --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -63,9 +74,9 @@
     }
     body[data-mode="custom"] {
       --accent:      var(--accentGreen);
-      --accentHover: #16a34a;
-      --accentSoft:  rgba(34, 197, 94, 0.12);
-      --accentRing:  rgba(34, 197, 94, 0.35);
+      --accentHover: #059669;
+      --accentSoft:  rgba(16, 185, 129, 0.12);
+      --accentRing:  rgba(16, 185, 129, 0.35);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -100,15 +111,16 @@
       background: var(--bgCard);
       border: 1px solid var(--borderColor);
       border-radius: 1rem;
-      box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+      box-shadow: var(--sh-lg);
       max-width: 720px;
       animation: spark-scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .reveal-label {
-      font-size: 0.75rem;
-      letter-spacing: 0.15em;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.25em;
       color: var(--accentAmber);
-      font-weight: 800;
+      font-weight: 700;
       text-transform: uppercase;
       margin-bottom: 14px;
     }
@@ -146,17 +158,80 @@
       font-weight: 900;
       letter-spacing: -0.03em;
       color: var(--accentGreen);
-      text-shadow: 0 4px 30px rgba(34, 197, 94, 0.4);
+      text-shadow: 0 4px 30px rgba(16, 185, 129, 0.4);
       padding: 20px 40px;
     }
 
     /* ============================================================
-       Layout shell
+       Gradient hero
+       ============================================================ */
+    .hero {
+      background: linear-gradient(150deg, #4F46E5 0%, #6366F1 100%);
+      color: #fff;
+      padding: 46px 30px 88px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 2px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+    .hero .kicker {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      opacity: 0.9;
+      font-weight: 500;
+      position: relative;
+    }
+    .hero h1 {
+      font-family: var(--font-serif);
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin: 10px 0 12px;
+      position: relative;
+      line-height: 1.08;
+    }
+    .hero p {
+      font-size: 1rem;
+      opacity: 0.94;
+      max-width: 560px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .hero .badges {
+      display: flex; gap: 9px;
+      justify-content: center; flex-wrap: wrap;
+      margin-top: 20px; position: relative;
+    }
+    .hero .badges span {
+      background: rgba(255,255,255,0.18);
+      padding: 6px 13px;
+      border-radius: 9999px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* ============================================================
+       Layout shell — floats up over the hero
        ============================================================ */
     .shell {
       max-width: 980px;
-      margin: 0 auto;
-      padding: 28px 24px 40px;
+      margin: -56px auto 0;
+      padding: 0 24px 40px;
+      position: relative;
+      z-index: 2;
     }
 
     /* Topbar — Spark-style sticky header in spirit, simplified */
@@ -175,9 +250,10 @@
       color: #fff;
       padding: 8px 16px;
       border-radius: 9999px;
-      font-weight: 800;
-      font-size: 0.75rem;
-      letter-spacing: 0.1em;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.25em;
       text-transform: uppercase;
       transition: background 0.2s ease;
     }
@@ -206,7 +282,7 @@
       padding: 0.875rem 1.5rem;
       border-radius: 0.75rem;
       font-size: 1rem;
-      box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+      box-shadow: var(--sh-md);
     }
     .btn.primary:hover { background: var(--accentHover); border-color: var(--accentHover); color: #fff; }
     .btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -227,10 +303,11 @@
     }
     .tier-pill .tier-idx {
       display: block;
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      color: var(--textMuted);
-      font-weight: 800;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.25em;
+      color: var(--accentBlue);
+      font-weight: 700;
       text-transform: uppercase;
     }
     .tier-pill .tier-name {
@@ -240,8 +317,8 @@
       color: var(--textSecondary);
     }
     .tier-pill.done {
-      background: rgba(34, 197, 94, 0.08);
-      border-color: rgba(34, 197, 94, 0.4);
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.4);
     }
     .tier-pill.done .tier-idx, .tier-pill.done .tier-name { color: var(--accentGreen); }
     .tier-pill.now {
@@ -286,7 +363,7 @@
       animation: spark-fade-in 0.3s ease-out;
     }
     .toast.show { display: block; }
-    .toast.good { background: rgba(34, 197, 94, 0.08); border-color: rgba(34, 197, 94, 0.35); color: #166534; }
+    .toast.good { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.35); color: #065F46; }
     .toast.bad  { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.35); color: #991b1b; }
     .toast.amber { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.35); color: #92400e; }
     .toast b { color: var(--textPrimary); }
@@ -299,9 +376,10 @@
       border: 1px solid var(--borderColor);
       border-radius: 1rem;
       padding: 28px;
-      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04);
-      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+      box-shadow: var(--sh-md);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.3s ease;
     }
+    .card:hover { transform: translateY(-5px); box-shadow: var(--sh-lg); }
     body[data-mode="training"] .card { border-color: rgba(245, 158, 11, 0.35); }
     body[data-mode="sandbox"]  .card { border-color: rgba(168, 85, 247, 0.30); }
 
@@ -326,11 +404,12 @@
       background: rgba(239, 68, 68, 0.08);
     }
     .timer-label {
-      font-size: 0.7rem;
-      letter-spacing: 0.15em;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.25em;
       text-transform: uppercase;
-      color: var(--textSecondary);
-      font-weight: 800;
+      color: var(--accent);
+      font-weight: 700;
     }
     .timer-value {
       font-family: var(--font-mono);
@@ -385,7 +464,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       cursor: pointer;
-      box-shadow: 0 14px 25px var(--accentRing), 0 4px 8px rgb(0 0 0 / 0.05);
+      box-shadow: 0 14px 25px var(--accentRing), 0 4px 8px rgba(17,17,17,0.05);
       transition: background 0.15s ease, transform 0.12s ease;
     }
     .btn-start:hover { background: var(--accentHover); transform: translateY(-1px); }
@@ -544,10 +623,16 @@
        ============================================================ */
     @keyframes spark-fade-in   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes spark-fade-up   { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp          { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: translateY(0); } }
     @keyframes spark-scale-in  { from { opacity: 0; transform: scale(0.9); }      to { opacity: 1; transform: scale(1); } }
 
+    .topbar, .ladder, .card, .custom-form { animation: fadeUp 0.35s ease-out; }
+
     @media (max-width: 640px) {
-      .shell { padding: 18px 16px 32px; }
+      .hero { padding: 34px 20px 78px; }
+      .hero h1 { font-size: 1.85rem; }
+      .hero p { font-size: 0.9rem; }
+      .shell { padding: 0 16px 32px; }
       .formula { font-size: 1.25rem; }
       .eq { font-size: 1rem; gap: 10px; padding: 20px 8px; }
       .timer-value { font-size: 2rem; }
@@ -567,6 +652,17 @@
 </div>
 
 <div class="praise" id="praise"><span id="praise-text"></span></div>
+
+<header class="hero">
+  <div class="kicker">Chemistry &middot; Mastery Drill</div>
+  <h1>Balancing Reactions</h1>
+  <p>Balance every equation before the clock runs out. Miss one and you drop into training until it clicks.</p>
+  <div class="badges">
+    <span>3 Tiers</span>
+    <span>2:00 Timer</span>
+    <span>Practice Mode</span>
+  </div>
+</header>
 
 <div class="shell">
 
